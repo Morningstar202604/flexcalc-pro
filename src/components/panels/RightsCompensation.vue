@@ -268,6 +268,7 @@
 import { ref, reactive, computed, inject, type Ref } from 'vue'
 import { NCard, NAlert, NInputNumber, NSelect, NSlider, NSwitch, NButton, NTable, NGrid, NGi, NDivider, NSteps, NStep, NTooltip, NTag, useMessage } from 'naive-ui'
 import { useMainStore } from '../../stores/main'
+import type { CompensationItem, CompensationLegalRef, CompensationResult } from '../../types'
 
 const message = useMessage()
 const store = useMainStore()
@@ -297,14 +298,9 @@ const DEFAULT_FORM = {
 
 const form = reactive(JSON.parse(JSON.stringify(DEFAULT_FORM)))
 
-/**
- * claim        — 可直接主张，计入合计
- * conditional  — 需前置条件（行政责令、劳动关系认定、解除/终止等）才成立，单列不计入合计
- * info         — 无金额或裁审口径不一，仅作提示
- */
-interface CalcItem { name: string; amount: number; note: string; kind: 'claim' | 'conditional' | 'info' }
-interface LegalRef { law: string; article: string; summary: string }
-interface CalcResult { total: number; conditionalTotal: number; items: CalcItem[]; legalRefs: LegalRef[] }
+type CalcItem = CompensationItem
+type LegalRef = CompensationLegalRef
+type CalcResult = CompensationResult
 
 const result = ref<CalcResult | null>(null)
 
@@ -315,6 +311,7 @@ const info = (name: string, note: string): CalcItem => ({ name, amount: 0, note,
 /** 合计只累加 claim，conditional 与 info 单列——避免把"可能需要行政前置"或"罚给国家"的钱算进用户预期 */
 function pack(items: CalcItem[], legalRefs: LegalRef[]): CalcResult {
   return {
+    scene: activeScene.value.name,
     total: items.filter(i => i.kind === 'claim').reduce((s, i) => s + i.amount, 0),
     conditionalTotal: items.filter(i => i.kind === 'conditional').reduce((s, i) => s + i.amount, 0),
     items, legalRefs,
@@ -475,6 +472,8 @@ function calc() {
     case 'algorithm': result.value = calcAlgo(); break
     case 'overwork': result.value = calcOverwork(); break
   }
+  // 文书生成器读取同一份结果，避免两处各自换算导致金额不一致
+  store.setCompensation(result.value)
 }
 
 function resetForm() {

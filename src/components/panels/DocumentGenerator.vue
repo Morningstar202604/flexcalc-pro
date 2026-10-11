@@ -3,9 +3,16 @@
     <!-- Header -->
     <n-card title="法律文书生成器 — 一键生成可提交的正式文件" class="card">
       <p class="desc">
-        基于您在维权中心填写的参数和系统计算结果，自动生成符合格式要求的正式法律文书。
-        生成后可复制或下载为文本文件，打印签字后直接提交给仲裁委或投诉窗口。
+        在"补偿计算"面板完成测算后，本页会自动把计算结果写入仲裁请求项与金额；未测算时保留空白待填。
+        生成后可复制或下载为文本文件，打印签字后提交前请先经 12348 或工会法律援助审核。
       </p>
+      <n-alert v-if="!comp" type="info" :show-icon="true" style="margin-top: 8px">
+        尚未读取到补偿计算结果，当前文书中的金额与事实项为空白待填格式。
+      </n-alert>
+      <n-alert v-else type="success" :show-icon="true" style="margin-top: 8px">
+        已带入「{{ comp.scene }}」测算结果：可直接主张 ¥{{ yuan(comp.total) }}
+        <template v-if="comp.conditionalTotal > 0">＋条件项 ¥{{ yuan(comp.conditionalTotal) }}（需前置条件成立，提交前请确认）</template>
+      </n-alert>
     </n-card>
 
     <n-grid :x-gap="12" cols="1 l:3" responsive="screen" style="margin-top: 12px">
@@ -106,10 +113,22 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
-import { NCard, NGrid, NGi, NInput, NSelect, NDatePicker, NButton, NDivider, useMessage } from 'naive-ui'
+import { NCard, NGrid, NGi, NInput, NSelect, NDatePicker, NButton, NDivider, NAlert, useMessage } from 'naive-ui'
+import { useMainStore } from '../../stores/main'
 
 const message = useMessage()
+const store = useMainStore()
 const activeDoc = ref('arbitration')
+
+/** 仲裁请求逐项来自"补偿计算"面板的真实结果，未测算时回退为空白待填 */
+const comp = computed(() => store.compensation)
+const yuan = (n: number) => n.toLocaleString('zh-CN')
+const claimItems = computed(() => comp.value?.items.filter(i => i.kind === 'claim' && i.amount > 0) ?? [])
+const condItems = computed(() => comp.value?.items.filter(i => i.kind === 'conditional' && i.amount > 0) ?? [])
+const requests = computed(() => [...claimItems.value, ...condItems.value])
+const requestTotal = computed(() => (comp.value?.total ?? 0) + (comp.value?.conditionalTotal ?? 0))
+const legalBasisLine = computed(() =>
+  (comp.value?.legalRefs ?? []).map(r => `《中华人民共和国${r.law}》${r.article}`).join('、') || '________')
 
 const docTypes = [
   { id: 'arbitration', name: '劳动仲裁申请书', icon: '⚖', desc: '请求仲裁委裁决被申请人支付补偿/赔偿' },
@@ -157,25 +176,22 @@ const arbitrationDoc = computed(() => {
 法定代表人/负责人：____  职务：____
 
 仲裁请求：
-1. 裁决被申请人支付拖欠工资人民币________元；
-2. 裁决被申请人支付加付赔偿金人民币________元（按拖欠金额50%计算）；
-3. 裁决被申请人支付未签订书面劳动合同双倍工资差额人民币________元；
-4. 裁决被申请人支付解除劳动合同赔偿金人民币________元；
-5. 裁决被申请人支付工伤医疗费、停工留薪期工资等合计人民币________元。
+${requests.value.length
+  ? requests.value.map((r, i) => `${i + 1}. 裁决被申请人支付${r.name.replace(/（.*?）/g, '')}人民币${yuan(r.amount)}元；`).join('\n')
+    + `\n（以上合计：人民币${yuan(requestTotal.value)}元）`
+  : `1. 裁决被申请人支付拖欠劳动报酬人民币________元；
+2. 裁决被申请人支付违法解除劳动合同赔偿金人民币________元；
+3. 裁决被申请人支付未订立书面劳动合同二倍工资差额人民币________元；
 （以上合计：人民币________元）
+[提示：先在"补偿计算"面板完成测算，请求金额会自动填入]`}
 
 事实与理由：
-申请人于____年__月__日起在${platform}平台从事外卖骑手/网约车司机工作。工作期间，被申请人存在下述严重违反劳动法律法规的行为：
+申请人于____年__月__日起在${platform}平台从事外卖配送工作，日均在线${store.work.dailyHours}小时、日均接单${store.work.dailyOrders}单，月工作${store.work.workDaysMonth}天。${comp.value ? `据测算，申请月均报酬约为人民币${yuan(Math.round(store.scenarios[0]?.income.grossIncome ?? 0))}元。` : ''}工作期间，被申请人存在下述行为：
+${comp.value
+  ? comp.value.items.filter(i => i.kind !== 'info').map((r, i) => `${'一二三四五'[i] || '五'}、${r.name}：${r.note}`).join('\n\n')
+  : '一、未依法按时足额支付劳动报酬。\n\n二、未依法与申请人订立书面劳动合同。\n\n三、未依法为申请人缴纳社会保险费。'}
 
-一、未依法按时足额支付劳动报酬。自____年__月起，被申请人累计拖欠申请人工资____个月，合计人民币____元。
-
-二、未依法与申请人签订书面劳动合同。申请人入职后至今，被申请人始终未与其订立书面劳动合同。
-
-三、未依法为申请人缴纳社会保险费。被申请人未依法为申请人缴纳养老保险、医疗保险、工伤保险等社会保险。
-
-四、____（其他侵权事实：如不合理处罚、强制远距离派单、违法封号等）。
-
-综上所述，被申请人的上述行为已严重违反了《中华人民共和国劳动合同法》《中华人民共和国社会保险法》以及《新就业形态劳动者权益保障办法》等有关法律法规规定。为维护申请人合法权益，特依法向你委提出仲裁申请，请求依法支持申请人全部仲裁请求。
+综上所述，被申请人的上述行为违反了《中华人民共和国劳动合同法》《中华人民共和国社会保险法》${legalBasisLine.value ? '及' + legalBasisLine.value + '等' : ''}规定。为维护申请人合法权益，特依法向你委提出仲裁申请，请求依法支持申请人全部仲裁请求。
 
 此致
 

@@ -150,3 +150,20 @@ export interface ComparisonResult {
   ranking: { id: string; netAnnual: number; label: string }[]
   summary: string
 }
+
+// ===== 权益补偿结果（供文书生成器引用） =====
+
+/**
+ * claim        — 可直接主张，计入合计
+ * conditional  — 需前置条件（行政责令、劳动关系认定、解除/终止等）才成立
+ * info         — 无金额或裁审口径不一，仅作提示
+ */
+export interface CompensationItem { name: string; amount: number; note: string; kind: 'claim' | 'conditional' | 'info' }
+export interface CompensationLegalRef { law: string; article: string; summary: string }
+export interface CompensationResult {
+  scene: string
+  total: number
+  conditionalTotal: number
+  items: CompensationItem[]
+  legalRefs: CompensationLegalRef[]
+}

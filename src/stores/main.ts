@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { CityRule, WorkParams, CostParams, PersonalParams, ScenarioResult } from '../types'
+import type { CityRule, WorkParams, CostParams, PersonalParams, ScenarioResult, CompensationResult } from '../types'
 import { ScenarioEngine } from '../engine/ScenarioEngine'
 
 export const CITIES = [
@@ -40,6 +40,10 @@ export const useMainStore = defineStore('main', () => {
   })
 
   const customPlans = ref<CustomPlan[]>([])
+
+  /** 补偿计算面板的最近一次结果，文书生成器据此填充真实金额 */
+  const compensation = ref<CompensationResult | null>(null)
+  function setCompensation(r: CompensationResult | null) { compensation.value = r }
 
   const engine = computed(() => rule.value ? new ScenarioEngine(rule.value) : null)
 
@@ -95,5 +99,5 @@ export const useMainStore = defineStore('main', () => {
 
   const comparison = computed(() => engine.value ? engine.value.compare(scenarios.value) : null)
 
-  return { rule, loading, loadError, work, costs, personal, customPlans, scenarios, comparison, loadRule, setCity, addScenario, removeScenario }
+  return { rule, loading, loadError, work, costs, personal, customPlans, compensation, setCompensation, scenarios, comparison, loadRule, setCity, addScenario, removeScenario }
 })
