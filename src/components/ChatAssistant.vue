@@ -1,0 +1,217 @@
+<template>
+  <div>
+    <!-- Floating trigger -->
+    <button class="chat-fab" @click="open = !open" :class="{ active: open }">
+      <svg v-if="!open" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      <svg v-else viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+
+    <!-- Chat panel -->
+    <transition name="panel">
+      <div v-if="open" class="chat-panel">
+        <div class="chat-head">
+          <span class="ch-title">AI 助手</span>
+          <n-tag v-if="isOnline && config.enabled && config.apiKey" size="small" type="success" :bordered="false">在线</n-tag>
+          <n-tag v-else size="small" :bordered="false">离线模式</n-tag>
+        </div>
+
+        <n-divider style="margin:6px 0" />
+
+        <div class="chat-body" ref="bodyRef">
+          <div v-if="!messages.length" class="chat-empty">
+            询问关于收入、税务、社保的任何问题
+          </div>
+          <div v-for="msg in messages" :key="msg.id" class="msg" :class="msg.role">
+            <div class="msg-bubble">
+              <div class="msg-text">{{ msg.content }}<span v-if="msg.isStreaming" class="cursor">|</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="quick-row">
+          <n-tag v-for="q in quickQuestions" :key="q" size="small" class="qq" @click="ask(q)">{{ q }}</n-tag>
+        </div>
+
+        <div class="chat-input">
+          <n-input v-model:value="input" type="textarea" :autosize="{ minRows: 1, maxRows: 3 }" placeholder="输入问题…" :disabled="isStreaming" @keydown.enter.prevent="onEnter" />
+          <n-button v-if="isStreaming" size="small" @click="stopStreaming">停止</n-button>
+          <n-button v-else type="primary" size="small" @click="sendChat">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </n-button>
+        </div>
+
+        <div class="chat-foot">
+          <n-button text size="tiny" @click="showSettings = true">API 设置</n-button>
+          <n-button text size="tiny" @click="clearHistory">清除对话</n-button>
+        </div>
+      </div>
+    </transition>
+
+    <!-- Settings modal -->
+    <n-modal v-model:show="showSettings" preset="dialog" title="AI 连接设置" :style="{ width: '420px' }">
+      <n-space vertical :size="14" style="padding-top:10px">
+        <n-alert type="info" :show-icon="true">
+          支持 OpenAI 兼容 API（DeepSeek / Qwen / GPT 等）。Key 仅存于浏览器本地。
+        </n-alert>
+        <n-form-item label="启用 AI"><n-switch v-model:value="config.enabled" /></n-form-item>
+        <n-form-item label="Endpoint"><n-input v-model:value="config.endpoint" placeholder="https://api.deepseek.com/v1/chat/completions" /></n-form-item>
+        <n-form-item label="API Key"><n-input v-model:value="config.apiKey" type="password" placeholder="sk-…" show-password-on="click" /></n-form-item>
+        <n-form-item label="模型"><n-select v-model:value="config.model" :options="modelOptions" /></n-form-item>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <n-button @click="testConnection" :loading="testing">测试连接</n-button>
+          <n-button type="primary" @click="saveAndClose">保存</n-button>
+        </div>
+      </n-space>
+    </n-modal>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, nextTick, watch } from 'vue'
+import { NButton, NInput, NTag, NDivider, NModal, NSpace, NFormItem, NSelect, NSwitch, NAlert, useMessage } from 'naive-ui'
+import { useAIChat } from '../composables/useAIChat'
+import type { ScenarioResult } from '../types'
+
+const props = defineProps<{ scenarios: ScenarioResult[] }>()
+const message = useMessage()
+
+const { config, messages, isStreaming, isOnline, showSettings, sendMessage, stopStreaming, clearHistory, updateConfig } = useAIChat()
+
+const open = ref(false)
+const input = ref('')
+const bodyRef = ref<HTMLElement>()
+const testing = ref(false)
+
+const modelOptions = [
+  { label: 'DeepSeek Chat', value: 'deepseek-chat' },
+  { label: 'DeepSeek Coder', value: 'deepseek-coder' },
+  { label: 'Qwen Turbo', value: 'qwen-turbo' },
+  { label: 'Qwen Plus', value: 'qwen-plus' },
+  { label: 'GPT-4o Mini', value: 'gpt-4o-mini' },
+  { label: 'GLM-4', value: 'glm-4' },
+]
+
+const quickQuestions = [
+  '怎么合法省税？',
+  '社保怎么缴划算？',
+  '当前风险高吗？',
+  '3个优化建议',
+]
+
+function ask(q: string) { input.value = q; sendChat() }
+
+function onEnter() { if (!isStreaming.value) sendChat() }
+
+async function sendChat() {
+  const q = input.value.trim()
+  if (!q || isStreaming.value) return
+  input.value = ''
+  await sendMessage(q, props.scenarios)
+  scrollToBottom()
+}
+
+function scrollToBottom() {
+  nextTick(() => { bodyRef.value?.scrollTo({ top: bodyRef.value.scrollHeight, behavior: 'smooth' }) })
+}
+
+watch(messages, scrollToBottom, { deep: true })
+
+async function testConnection() {
+  testing.value = true
+  try {
+    const resp = await fetch(config.value.endpoint.replace('/chat/completions', '/models').replace('/v1/chat/completions', '/v1/models'), {
+      headers: { Authorization: `Bearer ${config.value.apiKey}` }
+    })
+    if (resp.ok) message.success('连接成功')
+    else message.error(`连接失败：HTTP ${resp.status}`)
+  } catch (e: any) {
+    message.error(`连接失败：${e.message}`)
+  } finally { testing.value = false }
+}
+
+function saveAndClose() {
+  updateConfig({ endpoint: config.value.endpoint, apiKey: config.value.apiKey, model: config.value.model, enabled: config.value.enabled })
+  message.success('已保存')
+  showSettings.value = false
+}
+</script>
+
+<style scoped>
+.chat-fab {
+  position: fixed; bottom: 24px; right: 24px;
+  width: 48px; height: 48px; border-radius: 12px;
+  background: #0d9488; color: #ffffff;
+  border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 8px rgba(13,148,136,0.25);
+  z-index: 9999;
+  transition: background 0.15s, transform 0.15s;
+}
+.chat-fab:hover { background: #0f766e; }
+.chat-fab:active { transform: scale(0.96); }
+.chat-fab.active { background: #475569; }
+
+.chat-panel {
+  position: fixed; bottom: 80px; right: 24px;
+  width: 360px; max-height: 560px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0; border-radius: 8px;
+  display: flex; flex-direction: column; z-index: 9999;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+}
+
+.chat-head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px 0;
+}
+.ch-title { font-weight: 600; color: #0f172a; font-size: 14px; }
+
+.chat-body {
+  flex: 1; overflow-y: auto; padding: 10px 14px;
+  max-height: 280px; scroll-behavior: smooth;
+}
+.chat-body::-webkit-scrollbar { width: 4px; }
+.chat-body::-webkit-scrollbar-track { background: transparent; }
+.chat-body::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 2px; }
+
+.chat-empty {
+  color: #94a3b8; font-size: 13px; text-align: center;
+  padding: 24px 0;
+}
+
+.msg { display: flex; margin-bottom: 10px; }
+.msg.user { justify-content: flex-end; }
+.msg.assistant { justify-content: flex-start; }
+
+.msg-bubble {
+  max-width: 85%; padding: 8px 12px;
+  border-radius: 6px; font-size: 13px; line-height: 1.6;
+  white-space: pre-wrap; word-break: break-word;
+}
+.msg.user .msg-bubble { background: #0d9488; color: #ffffff; }
+.msg.assistant .msg-bubble { background: #f1f5f9; color: #1e293b; }
+
+.cursor { animation: blink 0.8s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+.quick-row { padding: 4px 12px 4px; display: flex; flex-wrap: wrap; gap: 4px; }
+.qq { cursor: pointer; }
+
+.chat-input {
+  display: flex; gap: 6px; padding: 8px 12px;
+  align-items: flex-end; border-top: 1px solid #e2e8f0;
+}
+
+.chat-foot {
+  display: flex; justify-content: space-between;
+  padding: 2px 12px 8px;
+}
+
+.panel-enter-active { transition: opacity 0.2s, transform 0.2s; }
+.panel-leave-active { transition: opacity 0.15s, transform 0.15s; }
+.panel-enter-from, .panel-leave-to { opacity: 0; transform: translateY(8px); }
+</style>

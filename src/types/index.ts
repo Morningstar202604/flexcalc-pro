@@ -1,0 +1,133 @@
+// ===== 核心数据模型 =====
+
+export interface CityRule {
+  city: string
+  cityName: string
+  year: number
+  occupation: string
+  occupationName: string
+  income: IncomeRule
+  tax: TaxRule
+  benefit: BenefitRule
+}
+
+export interface IncomeRule {
+  basePricePerOrder: number
+  distanceRate: number
+  /** P1 待接入：超重件加价（需补单均重量入参） */
+  weightSurcharge: { threshold: number; rate: number }
+  /** P1 待接入：peakHours 用于折算峰时单量占比，当前仅 multiplier 生效 */
+  timeSubsidy: { peakHours: string[]; multiplier: number }
+  holidayMultiplier: number
+  rainSurcharge: number
+  monthlyBonus?: { threshold: number; amount: number }
+}
+
+export interface TaxRule {
+  method: string
+  laborRemuneration: {
+    expenseDeductionRate: number
+    basicDeductionMonthly: number
+    taxTable: TaxBracket[]
+  }
+}
+
+export interface TaxBracket {
+  min: number
+  max: number
+  rate: number
+  deduction: number
+}
+
+export interface BenefitRule {
+  /** 灵活就业人员自行缴纳全部费率，不存在单位分担 */
+  pension: { baseMin: number; baseMax: number; rate: number }
+  /** 按当地固定基数与统筹费率自缴 */
+  medical: { baseFixed: number; rate: number }
+}
+
+// ===== 用户输入模型 =====
+
+export interface WorkParams {
+  city: string
+  dailyHours: number
+  dailyOrders: number
+  avgDistance: number
+  workDaysMonth: number
+  rainDaysMonth: number
+  holidayDaysMonth: number
+}
+
+export interface CostParams {
+  vehicleType: 'electric' | 'fuel' | 'mixed'
+  fuelCostMonth: number
+  electricityCostMonth: number
+  maintenanceMonth: number
+  insuranceMonth: number
+  phoneCostMonth: number
+  foodCostMonth: number
+  trafficFineMonth: number
+  vehicleDepreciationMonth: number
+  otherCostMonth: number
+}
+
+export interface PersonalParams {
+  currentAge: number
+  expectedRetireAge: number
+  hasSocialInsurance: boolean
+  specialDeductionMonth: number
+}
+
+// ===== 计算结果模型 =====
+
+export interface IncomeBreakdown {
+  basePay: number
+  distancePay: number
+  subsidyPay: number
+  bonusPay: number
+  grossIncome: number
+}
+
+export interface CostBreakdown extends CostParams {
+  total: number
+}
+
+export interface TaxBreakdown {
+  monthlyTax: number[]
+  annualTax: number
+  effectiveRate: number
+  afterTaxIncome: number
+  method: 'labor' | 'sole_proprietorship'
+}
+
+export interface BenefitBreakdown {
+  pensionMonthly: number
+  medicalMonthly: number
+  totalMonthly: number
+  items: { name: string; monthly: number; covered: boolean; risk: 'high' | 'medium' | 'low' }[]
+}
+
+export interface ScenarioResult {
+  id: string
+  name: string
+  work: WorkParams
+  costs: CostParams
+  income: IncomeBreakdown
+  costBreakdown: CostBreakdown
+  tax: TaxBreakdown
+  benefit: BenefitBreakdown
+  netMonthly: number
+  netAnnual: number
+  netHourly: number
+  rightsScore: number
+  rightsFlags: string[]
+  recommendation: 'recommended' | 'viable' | 'risky'
+  keyInsights: string[]
+}
+
+export interface ComparisonResult {
+  scenarios: ScenarioResult[]
+  best: ScenarioResult | null
+  ranking: { id: string; netAnnual: number; label: string }[]
+  summary: string
+}

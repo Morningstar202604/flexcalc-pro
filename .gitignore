@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.vite/
+*.log
+.DS_Store
+.thumbs.db
+.idea/
+.vscode/
+*.local
+.meituan-catpaw/
+coverage/
+*.tsbuildinfo
