@@ -48,11 +48,11 @@ export const useMainStore = defineStore('main', () => {
     loading.value = true
     loadError.value = null
     try {
-      const res = await fetch(`/rules/${city}-2025.json`)
+      const res = await fetch(`/rules/${city}.json`)
       const ctype = res.headers.get('content-type') || ''
       if (!res.ok) throw new Error(`规则文件加载失败（HTTP ${res.status}）`)
       // 静态托管的 SPA 回退会用 200 + HTML 应答缺失文件，仅判断 res.ok 拦不住
-      if (!ctype.includes('json')) throw new Error(`未找到 ${city} 的 2025 年规则文件`)
+      if (!ctype.includes('json')) throw new Error(`未找到 ${city} 的规则文件`)
       const data = await res.json() as CityRule
       if (seq !== loadSeq) return
       rule.value = data

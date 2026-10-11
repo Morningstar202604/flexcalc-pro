@@ -28,7 +28,13 @@
             <div class="header-status">
               <span class="status-city">{{ store.rule?.cityName || '—' }}</span>
               <span class="status-sep">·</span>
-              <span class="status-year">2025版</span>
+              <span class="status-year">{{ store.rule ? `${store.rule.year}版` : '—' }}</span>
+              <span
+                v-if="store.rule"
+                class="status-verified"
+                :class="store.rule.verified ? 'ok' : 'warn'"
+                :title="store.rule.verified ? '全部条目已回溯官方原文' : '存在未回溯官方原文的条目，详见各页数据来源标注'"
+              >{{ store.rule.verified ? '已核验' : '部分待核验' }}</span>
             </div>
           </div>
         </n-layout-header>
@@ -242,6 +248,23 @@ const themeOverrides: GlobalThemeOverrides = {
 }
 .status-sep {
   color: #cbd5e1;
+}
+.status-verified {
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 3px;
+  padding: 1px 5px;
+  letter-spacing: 0.3px;
+}
+.status-verified.ok {
+  color: #059669;
+  background: rgba(5, 150, 105, 0.08);
+  border: 1px solid rgba(5, 150, 105, 0.2);
+}
+.status-verified.warn {
+  color: #d97706;
+  background: rgba(217, 119, 6, 0.08);
+  border: 1px solid rgba(217, 119, 6, 0.2);
 }
 
 /* ===== Content ===== */

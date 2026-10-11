@@ -9,8 +9,9 @@ export class BenefitEngine {
    */
   calcMonthly(income: number, enrolled: boolean): BenefitBreakdown {
     const pensionBase = Math.min(Math.max(income, this.rule.pension.baseMin), this.rule.pension.baseMax)
+    const medicalBase = Math.min(Math.max(income, this.rule.medical.baseMin), this.rule.medical.baseMax)
     const pensionMonthly = round(pensionBase * this.rule.pension.rate)
-    const medicalMonthly = round(this.rule.medical.baseFixed * this.rule.medical.rate)
+    const medicalMonthly = round(medicalBase * this.rule.medical.rate)
 
     const items: BenefitBreakdown['items'] = [
       { name: '养老保险', monthly: pensionMonthly, covered: enrolled, risk: 'high' },

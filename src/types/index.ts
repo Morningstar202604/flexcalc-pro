@@ -1,14 +1,33 @@
 // ===== 核心数据模型 =====
 
+// 每条外部数据必须携带来源，UI 上可逐条回溯；confidence=unverified 的值不得对外引用
+export interface SourceRef {
+  title: string
+  docNo?: string
+  issuedBy?: string
+  url?: string
+  effectiveFrom?: string
+  retrievedAt: string
+  confidence: 'official' | 'derived' | 'unverified'
+  note?: string
+}
+
 export interface CityRule {
   city: string
   cityName: string
   year: number
+  lastCheckedAt: string
+  /** 该城市全部条目均已官方核对时为 true，UI 据此显示数据可信度标识 */
+  verified: boolean
   occupation: string
   occupationName: string
   income: IncomeRule
   tax: TaxRule
   benefit: BenefitRule
+  minimumWage: { monthly: number; nonFullTimeHourly: number }
+  /** 退休测算参数：计发基数与假想收益率均为外部输入，禁止在代码里写死 */
+  retirement: { benefitBaseMonthly: number; paymentIndex: number; assumedAnnualReturn: number }
+  sources: Record<string, SourceRef>
 }
 
 export interface IncomeRule {
@@ -42,8 +61,8 @@ export interface TaxBracket {
 export interface BenefitRule {
   /** 灵活就业人员自行缴纳全部费率，不存在单位分担 */
   pension: { baseMin: number; baseMax: number; rate: number }
-  /** 按当地固定基数与统筹费率自缴 */
-  medical: { baseFixed: number; rate: number }
+  /** 以本人申报收入为基数，夹在上下限之间（穗医保规字〔2022〕1号） */
+  medical: { baseMin: number; baseMax: number; rate: number }
 }
 
 // ===== 用户输入模型 =====

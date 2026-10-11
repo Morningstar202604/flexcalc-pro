@@ -2,7 +2,7 @@ import { readFileSync } from 'fs'
 import { ScenarioEngine } from '../src/engine/ScenarioEngine'
 import type { CityRule, WorkParams, CostParams, PersonalParams } from '../src/types'
 
-const rule = JSON.parse(readFileSync('public/rules/guangzhou-2025.json', 'utf8')) as CityRule
+const rule = JSON.parse(readFileSync('public/rules/guangzhou.json', 'utf8')) as CityRule
 const work: WorkParams = {
   city: 'guangzhou', dailyHours: 10, dailyOrders: 35,
   avgDistance: 2.5, workDaysMonth: 26, rainDaysMonth: 3, holidayDaysMonth: 2,
