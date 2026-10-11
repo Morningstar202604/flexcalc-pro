@@ -148,12 +148,14 @@
 
     <div class="ps-foot">
       <n-tag size="small" :bordered="false" type="info">参数与测算均在本机完成</n-tag>
+      <div v-if="store.paramsRestored" class="ps-restored">已恢复上次未完成的测算参数</div>
+      <n-button size="tiny" quaternary block @click="store.resetParams()">重置为默认参数</n-button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { NSlider, NRadioGroup, NRadioButton, NSwitch, NDivider, NTag, NSelect } from 'naive-ui'
+import { NSlider, NRadioGroup, NRadioButton, NSwitch, NDivider, NTag, NSelect, NButton } from 'naive-ui'
 import { useMainStore, CITIES } from '../stores/main'
 
 const store = useMainStore()
@@ -236,5 +238,15 @@ const cityOptions = CITIES
 .ps-foot {
   margin-top: 10px;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ps-restored {
+  font-size: 10px;
+  color: #0f766e;
+  background: rgba(13,148,136,0.07);
+  border-radius: 3px;
+  padding: 3px 6px;
 }
 </style>

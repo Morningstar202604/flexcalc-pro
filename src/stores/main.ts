@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { CityRule, WorkParams, CostParams, PersonalParams, ScenarioResult, CompensationResult } from '../types'
 import { ScenarioEngine } from '../engine/ScenarioEngine'
 
@@ -16,30 +16,67 @@ interface CustomPlan {
   costs: CostParams
 }
 
+const PARAMS_KEY = 'flexcalc_params_v1'
+
+const DEFAULT_WORK: WorkParams = {
+  city: 'guangzhou', dailyHours: 10, dailyOrders: 35,
+  avgDistance: 2.5, workDaysMonth: 26, rainDaysMonth: 3, holidayDaysMonth: 2,
+}
+const DEFAULT_COSTS: CostParams = {
+  vehicleType: 'electric', fuelCostMonth: 0,
+  electricityCostMonth: 300, maintenanceMonth: 200,
+  insuranceMonth: 100, phoneCostMonth: 100, foodCostMonth: 800,
+  trafficFineMonth: 50, vehicleDepreciationMonth: 300, otherCostMonth: 100,
+}
+const DEFAULT_PERSONAL: PersonalParams = {
+  currentAge: 25, expectedRetireAge: 60, hasSocialInsurance: false,
+  specialDeductionMonth: 0,
+}
+
+/** 只恢复结构已知的字段，避免旧版本残留数据把 NaN/未知键灌进计算 */
+function hydrate<T extends object>(saved: unknown, fallback: T): T {
+  if (!saved || typeof saved !== 'object') return { ...fallback }
+  const out = { ...fallback } as Record<string, unknown>
+  const known = fallback as Record<string, unknown>
+  for (const [k, v] of Object.entries(saved as Record<string, unknown>)) {
+    if (k in known && (typeof v === 'number' || typeof v === 'boolean' || typeof v === 'string')) {
+      out[k] = v
+    }
+  }
+  return out as T
+}
+
+function loadParams() {
+  try {
+    const raw = localStorage.getItem(PARAMS_KEY)
+    if (!raw) return null
+    return JSON.parse(raw) as Record<string, unknown>
+  } catch { return null }
+}
+
 export const useMainStore = defineStore('main', () => {
   const rule = ref<CityRule | null>(null)
   const loading = ref(false)
   const loadError = ref<string | null>(null)
+  const paramsRestored = ref(false)
   let loadSeq = 0
+  const saved = loadParams()
 
-  const work = ref<WorkParams>({
-    city: 'guangzhou', dailyHours: 10, dailyOrders: 35,
-    avgDistance: 2.5, workDaysMonth: 26, rainDaysMonth: 3, holidayDaysMonth: 2,
-  })
+  const work = ref<WorkParams>(hydrate(saved?.work, DEFAULT_WORK))
+  const costs = ref<CostParams>(hydrate(saved?.costs, DEFAULT_COSTS))
+  const personal = ref<PersonalParams>(hydrate(saved?.personal, DEFAULT_PERSONAL))
+  paramsRestored.value = !!saved
 
-  const costs = ref<CostParams>({
-    vehicleType: 'electric', fuelCostMonth: 0,
-    electricityCostMonth: 300, maintenanceMonth: 200,
-    insuranceMonth: 100, phoneCostMonth: 100, foodCostMonth: 800,
-    trafficFineMonth: 50, vehicleDepreciationMonth: 300, otherCostMonth: 100,
-  })
-
-  const personal = ref<PersonalParams>({
-    currentAge: 25, expectedRetireAge: 60, hasSocialInsurance: false,
-    specialDeductionMonth: 0,
-  })
-
-  const customPlans = ref<CustomPlan[]>([])
+  /** 自定义方案是嵌套结构，数组不能走 hydrate 的键值白名单，需单独校验必要字段 */
+  const customPlans = ref<CustomPlan[]>(
+    Array.isArray(saved?.customPlans)
+      ? (saved!.customPlans as unknown[]).filter((p): p is CustomPlan => {
+          const o = p as Record<string, unknown> | null
+          return !!o && typeof o.id === 'string' && typeof o.name === 'string'
+            && !!o.work && typeof o.work === 'object' && !!o.costs && typeof o.costs === 'object'
+        }).map(p => ({ id: p.id, name: p.name, work: hydrate(p.work, DEFAULT_WORK), costs: hydrate(p.costs, DEFAULT_COSTS) }))
+      : []
+  )
 
   /** 补偿计算面板的最近一次结果，文书生成器据此填充真实金额 */
   const compensation = ref<CompensationResult | null>(null)
@@ -69,10 +106,28 @@ export const useMainStore = defineStore('main', () => {
     }
   }
 
-  async function setCity(city: string) {
+  function setCity(city: string) {
     work.value.city = city
     customPlans.value = []
-    await loadRule(city)
+    return loadRule(city)
+  }
+
+  /** 参数是用户逐项调出来的，刷新即丢会让"方案对比"无法复现，故落本地存储 */
+  watch([work, costs, personal, customPlans], () => {
+    try {
+      localStorage.setItem(PARAMS_KEY, JSON.stringify({
+        work: work.value, costs: costs.value, personal: personal.value, customPlans: customPlans.value,
+      }))
+    } catch { /* 隐私模式或配额耗尽时静默降级为不持久化 */ }
+  }, { deep: true })
+
+  function resetParams() {
+    work.value = { ...DEFAULT_WORK }
+    costs.value = { ...DEFAULT_COSTS }
+    personal.value = { ...DEFAULT_PERSONAL }
+    customPlans.value = []
+    paramsRestored.value = false
+    return loadRule(work.value.city)
   }
 
   const scenarios = computed<ScenarioResult[]>(() => {
@@ -99,5 +154,5 @@ export const useMainStore = defineStore('main', () => {
 
   const comparison = computed(() => engine.value ? engine.value.compare(scenarios.value) : null)
 
-  return { rule, loading, loadError, work, costs, personal, customPlans, compensation, setCompensation, scenarios, comparison, loadRule, setCity, addScenario, removeScenario }
+  return { rule, loading, loadError, paramsRestored, work, costs, personal, customPlans, compensation, setCompensation, scenarios, comparison, loadRule, setCity, resetParams, addScenario, removeScenario }
 })

@@ -44,7 +44,11 @@
             </div>
             <div class="form-item">
               <label>身份证号</label>
-              <n-input v-model:value="userInfo.id" placeholder="仅用于文书" />
+              <n-input v-model:value="userInfo.id" placeholder="仅用于文书" :input-props="{ autocomplete: 'off', spellcheck: 'false' }" />
+              <p class="id-note">
+                仲裁申请书须载明完整身份证号，因此本页不做打码。该输入只保存在当前页面内存中，
+                不写入本地存储、不参与任何联网请求；导出的 .txt 文件包含你的姓名、电话与身份证号，请自行妥善保管并及时删除。
+              </p>
             </div>
             <div class="form-item">
               <label>平台名称</label>

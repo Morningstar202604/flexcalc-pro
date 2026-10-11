@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      # 构建失败过一次：类型检查与构建必须在 CI 里跑，不能只靠本地手测
+      - name: Type check
+        run: npx vue-tsc --noEmit
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # 规则文件是产品主张的一部分，缺出处或 verified 误标都要挡住
+      - name: Rule files are valid JSON with provenance
+        run: node -e "
+          const fs=require('fs');
+          for (const f of fs.readdirSync('public/rules')) {
+            const r=JSON.parse(fs.readFileSync('public/rules/'+f,'utf8'));
+            const srcs=Object.entries(r.sources);
+            if (srcs.length < 6) throw new Error(f+' 来源条目不足');
+            for (const [k,s] of srcs) {
+              if (!['official','derived','unverified'].includes(s.confidence)) throw new Error(f+' '+k+' 置信度非法');
+              if (s.confidence==='official' && !(s.docNo||s.url)) throw new Error(f+' '+k+' official 但无文号/链接');
+            }
+            const allOfficial = srcs.every(([,s])=>s.confidence==='official');
+            if (r.verified && !allOfficial) throw new Error(f+' verified=true 但存在非 official 来源');
+          }
+          console.log('rule provenance OK');
+        "
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
