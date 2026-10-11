@@ -1,8 +1,8 @@
 <template>
   <div>
-    <n-card title="政策百科 — 三级法规与权益指南" class="card">
+    <n-card title="政策百科 — 法规依据与维权指引" class="card">
       <p class="desc">
-        从国家到省市、从平台到个人，一站式梳理灵活就业相关政策法规。所有内容基于公开政策文件，仅供参考。
+        本页每条政策均标注文件名、文号、施行状态与原文链接。标注「待核实」的条目尚无权威出处，请勿对外引用。
       </p>
     </n-card>
 
@@ -11,25 +11,61 @@
         <n-card class="card" style="margin-top: 0">
           <div v-for="p in policies.national" :key="p.id" class="policy-item">
             <div class="pi-head">
-              <n-tag :type="p.priority === 2 ? 'warning' : 'info'" size="small" :bordered="false">
-                {{ p.priority === 2 ? '征求意见' : '已施行' }}
-              </n-tag>
+              <n-tag :type="statusType(p.status)" size="small" :bordered="false">{{ p.status }}</n-tag>
               <strong class="pi-title">{{ p.title }}</strong>
             </div>
+            <div class="pi-meta">
+              <span v-if="p.docNo" class="pi-doc">{{ p.docNo }}</span>
+              <span v-if="p.effectiveFrom">施行/报送：{{ p.effectiveFrom }}</span>
+              <a v-if="p.url" :href="p.url" target="_blank" rel="noopener noreferrer" class="pi-link">原文</a>
+            </div>
             <p class="pi-summary">{{ p.summary }}</p>
-            <div class="pi-value">{{ p.value }}</div>
+            <p v-if="p.caveat" class="pi-caveat">注意：{{ p.caveat }}</p>
           </div>
         </n-card>
       </n-tab-pane>
 
-      <n-tab-pane name="guangdong" tab="广东省">
+      <n-tab-pane name="guangdong" tab="广东省 / 广州">
         <n-card class="card" style="margin-top: 0">
           <div v-for="p in policies.guangdong" :key="p.id" class="policy-item">
             <div class="pi-head">
-              <n-tag type="success" size="small" :bordered="false">已施行</n-tag>
+              <n-tag :type="statusType(p.status)" size="small" :bordered="false">{{ p.status }}</n-tag>
               <strong class="pi-title">{{ p.title }}</strong>
             </div>
+            <div class="pi-meta">
+              <span v-if="p.docNo" class="pi-doc">{{ p.docNo }}</span>
+              <span v-if="p.effectiveFrom">施行/报送：{{ p.effectiveFrom }}</span>
+              <a v-if="p.url" :href="p.url" target="_blank" rel="noopener noreferrer" class="pi-link">原文</a>
+            </div>
             <p class="pi-summary">{{ p.summary }}</p>
+            <p v-if="p.caveat" class="pi-caveat">注意：{{ p.caveat }}</p>
+          </div>
+        </n-card>
+      </n-tab-pane>
+
+      <n-tab-pane name="sources" tab="本城数据溯源">
+        <n-card class="card" style="margin-top: 0" title="当前城市参数逐条溯源">
+          <p class="desc" style="margin-bottom:10px">
+            测算页的每个外部参数都来自左侧规则文件，此处展示其出处与置信度。
+            <strong>official</strong>=已回溯官方原文；<strong>derived</strong>=据官方口径推算；<strong>unverified</strong>=无权威来源，仅作占位。
+          </p>
+          <n-empty v-if="!rule" description="规则文件未加载" />
+          <div v-else>
+            <div v-for="(s, key) in rule.sources" :key="key" class="src-item">
+              <div class="src-head">
+                <n-tag :type="s.confidence === 'official' ? 'success' : s.confidence === 'derived' ? 'warning' : 'error'"
+                       size="small" :bordered="false">{{ s.confidence }}</n-tag>
+                <span class="src-key">{{ FIELD_LABELS[key] || key }}</span>
+                <a v-if="s.url" :href="s.url" target="_blank" rel="noopener noreferrer" class="pi-link">原文</a>
+              </div>
+              <div class="src-title">{{ s.title }}<span v-if="s.docNo" class="pi-doc">{{ s.docNo }}</span></div>
+              <div class="src-meta">
+                <span v-if="s.issuedBy">{{ s.issuedBy }} · </span>
+                <span v-if="s.effectiveFrom">生效：{{ s.effectiveFrom }} · </span>
+                <span>核对于 {{ s.retrievedAt }}</span>
+              </div>
+              <p v-if="s.note" class="src-note">{{ s.note }}</p>
+            </div>
           </div>
         </n-card>
       </n-tab-pane>
@@ -50,60 +86,115 @@
           </n-gi>
         </n-grid>
       </n-tab-pane>
-
-      <n-tab-pane name="platform" tab="平台规则">
-        <n-card class="card" style="margin-top: 0">
-          <n-table :bordered="false" :single-line="false" size="small">
-            <thead><tr><th>平台</th><th>计价要素</th><th>高峰倍率</th><th>保障</th></tr></thead>
-            <tbody>
-              <tr v-for="row in platformRules" :key="row.platform">
-                <td><strong>{{ row.platform }}</strong></td>
-                <td>{{ row.pricing }}</td>
-                <td>{{ row.peakRate }}</td>
-                <td>
-                  <n-tag v-for="t in row.insurance" :key="t" size="small" type="info" style="margin-right:4px">{{ t }}</n-tag>
-                </td>
-              </tr>
-            </tbody>
-          </n-table>
-        </n-card>
-      </n-tab-pane>
     </n-tabs>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { NCard, NTabs, NTabPane, NGrid, NGi, NTag, NSteps, NStep, NTable } from 'naive-ui'
+import { computed, ref } from 'vue'
+import { NCard, NTabs, NTabPane, NGrid, NGi, NTag, NSteps, NStep, NEmpty } from 'naive-ui'
+import { useMainStore } from '../stores/main'
 
+const store = useMainStore()
+const rule = computed(() => store.rule)
 const tab = ref('national')
 
-const policies = {
+const FIELD_LABELS: Record<string, string> = {
+  pension: '养老保险缴费基数上下限',
+  pensionRate: '养老保险缴费比例',
+  medical: '医疗保险缴费规则',
+  medicalBase: '医疗保险缴费基数上下限',
+  tax: '劳务报酬累计预扣',
+  taxPlatform: '平台涉税信息报送规定',
+  income: '平台接单计价规则',
+  minimumWage: '最低工资标准',
+  retirement: '养老金计发公式与假设',
+}
+
+type Status = '已施行' | '试点扩围' | '待核实' | '企业披露'
+const statusType = (s: Status) => s === '已施行' ? 'success' : s === '待核实' ? 'error' : 'warning'
+
+interface Policy {
+  id: number
+  title: string
+  status: Status
+  docNo?: string
+  effectiveFrom?: string
+  url?: string
+  summary: string
+  caveat?: string
+}
+
+const policies: { national: Policy[]; guangdong: Policy[] } = {
   national: [
-    { id: 1, title: '新就业形态劳动者权益保障办法', priority: 1, summary: '人社部发布，明确平台应承担用工责任，保障劳动者获得劳动报酬、休息休假、职业安全等基本权益。', value: '首次从国家层面为灵活就业者提供统一保障框架' },
-    { id: 2, title: '互联网平台企业涉税信息报送规定（810号令）', priority: 1, summary: '2025年6月施行，要求平台按累计预扣法预扣预缴从业人员劳务报酬个税。', value: '税务合规有据可依，税负透明化' },
-    { id: 3, title: '职业伤害保障办法', priority: 1, summary: '美团出资15亿元为600多万骑手缴纳职业伤害保障，全国推广中。', value: '外卖骑手首次获得类工伤保险覆盖' },
-    { id: 4, title: '新就业形态劳动者书面协议订立指引', priority: 2, summary: '明确平台应与不完全符合确立劳动关系的劳动者订立书面协议。', value: '书面协议具有法律约束力' },
+    {
+      id: 1, title: '关于维护新就业形态劳动者劳动保障权益的指导意见', status: '已施行',
+      docNo: '人社部发〔2021〕56号', effectiveFrom: '2021-07',
+      url: 'https://hrss.sz.gov.cn/ztfw/xjyxtfwbzzt/xjyxtldzzcwj/content/post_10413952.html',
+      summary: '确立三分法用工关系，要求平台对"不完全符合确立劳动关系情形"的劳动者保障劳动报酬、休息、职业安全等权益，并推动职业伤害保障试点。',
+      caveat: '网传"新就业形态劳动者权益保障办法"这一国家级规章并不存在，本项目早前版本误引，现以本文件为准。',
+    },
+    {
+      id: 2, title: '互联网平台企业涉税信息报送规定', status: '已施行',
+      docNo: '国务院令第810号', effectiveFrom: '2025-06-20 公布，2025-10 首次报送',
+      url: 'https://www.mee.gov.cn/zcwj/gwywj/202506/t20250624_1121806.shtml',
+      summary: '要求平台向税务机关报送平台内经营者和从业人员涉税信息。',
+      caveat: '官方解读明确：在平台内从事配送、运输、家政等便民劳务活动的从业人员，其收入信息免予报送。外卖骑手的收入不在该规定报送范围内，本产品的个税测算属自行申报口径下的估算，不是平台代扣结果。',
+    },
+    {
+      id: 3, title: '关于扩大新就业形态人员职业伤害保障试点的通知', status: '试点扩围',
+      docNo: '人社部等九部门，2025-08',
+      url: 'https://guangdong.chinatax.gov.cn/gdsw/zjfg/2025-08/18/content_8a392a22eed04f0f9477c8ee5294cbeb.shtml',
+      summary: '2026年推动职业伤害保障试点在全国31个省份和新疆生产建设兵团实施，出行、即时配送、同城货运三个行业平台企业总体纳入。',
+      caveat: '职业伤害保障由平台按单缴费，不构成骑手个人支出；其待遇标准与工伤保险不同，不可等同表述。',
+    },
+    {
+      id: 4, title: '新就业形态劳动者休息和劳动报酬权益保障指引 / 劳动规则公示指引 / 权益维护服务指南', status: '已施行',
+      docNo: '人社部办公厅 2023', url: '',
+      summary: '要求平台公开算法规则、合理确定计件单价与抽成比例，并订立书面协议。',
+      caveat: '原文页面待补链接；"书面协议订立指引"这一单独文件名不准确，实际为上述"两指引一指南"。',
+    },
   ],
   guangdong: [
-    { id: 1, title: '广东省灵活就业人员社保补贴', summary: '就业困难人员和毕业2年内高校毕业生，每月可领600元补贴，最长3年，距退休5年内可延至退休。申请渠道：广东公共就业服务云平台。' },
-    { id: 2, title: '新就业形态劳动者建会入会集中行动', summary: '依托粤工惠平台，外卖骑手、网约车司机可线上加入工会，享受维权服务和福利。全省已建新就业形态工会组织3000多个。' },
-    { id: 3, title: '广州市总工会蓝宝书', summary: '首次将平台算法规则（派单、计价、考核等）纳入集体协商参考，骑手平均年薪超15万元（2025）。' },
-    { id: 4, title: '深圳新就业形态劳动报酬指引', summary: '规定外卖骑手小时最低工资标准为22.2元，明确法定节假日工作时间应计发额外报酬。' },
-  ]
+    {
+      id: 1, title: '广东省灵活就业人员参加企业职工基本养老保险办法', status: '已施行',
+      docNo: '粤人社规〔2026〕14号', effectiveFrom: '2026-05-01',
+      url: 'https://hrss.sz.gov.cn/szsi/sbjxxgk/zcfggfxwj/zcfg/sbzs/content/post_12855003.html',
+      summary: '第七条：缴费比例20%，其中12%记入统筹基金、8%记入个人账户；第六条：在参保地企业职保缴费基数上下限范围内自选基数。',
+    },
+    {
+      id: 2, title: '关于公布2026年职工基本养老保险缴费基数上下限有关问题的通知', status: '已施行',
+      docNo: '粤人社发〔2026〕24号', effectiveFrom: '下限2026-01-01，上限2026-07-01',
+      url: 'https://guangdong.chinatax.gov.cn/gdsw/ssfggds/2026-10/08/content_b40dcb7bf605411fbb12e0f81281dc6b.shtml',
+      summary: '全省企业职工基本养老保险缴费基数下限统一为5510元，不再划分片区；上限27603元。',
+      caveat: '深圳此前按本市口径单列较低下限，2026年起并入全省统一标准，跨口径历史对比数据不可直接混用。',
+    },
+    {
+      id: 3, title: '广东省人民政府关于调整我省最低工资标准的通知', status: '已施行',
+      docNo: '粤府2026年调整通知', effectiveFrom: '2026-09-01',
+      url: 'https://www.sz.gov.cn/cn/xxgk/zfxxgj/zwdt/content/post_12936470.html',
+      summary: '广州一类2680元/月、深圳一类2700元/月，广深非全日制小时最低工资均为25.4元/小时；二类2300元/月。',
+      caveat: '早前版本使用的"深圳小时最低工资22.2元"已失效，测算与文案均已改为25.4元。',
+    },
+    {
+      id: 4, title: '广州市职工医疗保险和生育保险筹资标准的通知', status: '已施行',
+      docNo: '穗医保规字〔2022〕1号', effectiveFrom: '2023-01-01',
+      url: 'https://www.gz.gov.cn/gfxwj/sbmgfxwj/gzsylbzj/content/post_8689834.html',
+      summary: '灵活就业人员按本人申报工资收入的8%按月缴纳职工基本医疗保险，基数上下限为上上年度全口径月平均工资的60%-300%。',
+      caveat: '2026年度具体上下限（31170/6234）据媒体与代办汇总交叉核对，尚未回溯税务官网原文页，标记为 derived。',
+    },
+    {
+      id: 5, title: '广州市总工会"蓝宝书"与集体协商、新就业形态形态工会建会入会', status: '待核实',
+      summary: '网传将平台算法规则纳入集体协商参考，并称"骑手平均年薪超15万元"。',
+      caveat: '该年薪数字未回溯到工会原文报告，且与本产品测算的广州骑手年毛收入约11万元存在明显差距，暂不用于任何测算，仅作线索保留。',
+    },
+  ],
 }
 
 const reliefGuide = [
-  { title: '发生工伤怎么办？', steps: ['立即报警并保留现场证据', '就医保留所有病历和费用单据', '向人社局申请工伤认定（30日内）', '必要时申请劳动仲裁', '联系工会法援热线：12351'] },
-  { title: '平台拖欠/乱扣工资？', steps: ['保留APP工资明细和扣款记录截图', '平台客服申诉并留存记录', '拨打12333人社热线投诉', '向劳动监察大队举报', '必要时申请劳动仲裁（免费）'] },
-  { title: '如何自己交社保？', steps: ['微信粤省事小程序 → 社保服务', '办理灵活就业人员缴费登记', '选择缴费基数（平均工资60%-300%）', '绑定银行卡按月自动扣费', '也可通过粤税通办理'] },
-]
-
-const platformRules = [
-  { platform: '美团', pricing: '起步价¥3.5 + 距离 + 重量 + 时段', peakRate: '1.2-1.4x', insurance: ['职业伤害', '商业意外'] },
-  { platform: '饿了么', pricing: '起步价¥4 + 距离 + 重量', peakRate: '1.2-1.5x', insurance: ['职业伤害', '雇主责任'] },
-  { platform: '滴滴', pricing: '起步价¥8 + 里程 + 时长 + 远途', peakRate: '1.0-1.6x', insurance: ['商业险'] },
-  { platform: '顺丰同城', pricing: '起步价¥5 + 距离 + 难度', peakRate: '1.2-1.3x', insurance: ['商业意外', '雇主责任'] },
+  { title: '发生职业伤害怎么办？', steps: ['立即就医并保留病历、诊断证明、费用发票原件', '保留接单记录、事故现场证据、报警或交通事故责任认定书', '先走平台侧职业伤害保障报案（由平台按单缴费）', '若主张劳动关系工伤，向人社局申请工伤认定（个人申请时效1年）', '必要时申请劳动仲裁，或拨打12351工会维权热线'] },
+  { title: '平台拖欠/乱扣报酬？', steps: ['保留APP报酬明细和扣款记录截图（含时间戳）', '平台客服工单申诉并留存书面回复', '拨打12333人社热线或向劳动保障监察机构投诉', '注意：若无法确认劳动关系，可能按民事服务合同争议处理', '必要时申请劳动仲裁（免费）或向法院起诉'] },
+  { title: '如何自己交社保？', steps: ['粤省事小程序或粤税通 → 灵活就业人员缴费登记', '养老可在全省统一上下限（5510–27603元）内自选基数，费率20%', '医保以本人申报收入为基数，费率8%（广州口径）', '绑定银行卡按月扣费', '仅需养老+医保两项，职业伤害保障由平台缴费，个人无需缴纳'] },
 ]
 </script>
 
@@ -116,7 +207,19 @@ const platformRules = [
 .pi-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
 .pi-title { font-size: 14px; color: #0f172a; font-weight: 600; }
 .pi-summary { color: #64748b; font-size: 13px; line-height: 1.6; margin-bottom: 4px; }
-.pi-value { font-size: 12px; color: #0d9488; padding-left: 8px; border-left: 2px solid #0d9488; }
+.pi-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 11px; color: #94a3b8; margin-bottom: 5px; }
+.pi-doc { color: #0f766e; background: rgba(13,148,136,0.07); border-radius: 3px; padding: 1px 6px; font-weight: 600; }
+.pi-link { color: #0d9488; text-decoration: none; border-bottom: 1px solid rgba(13,148,136,0.3); }
+.pi-link:hover { border-bottom-color: #0d9488; }
+.pi-caveat { font-size: 12px; color: #b45309; background: #fffbeb; border-left: 2px solid #d97706; padding: 6px 8px; border-radius: 0 3px 3px 0; margin: 6px 0 0; line-height: 1.5; }
+
+.src-item { padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+.src-item:last-child { border-bottom: none; }
+.src-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.src-key { font-size: 12px; font-weight: 600; color: #0f172a; }
+.src-title { font-size: 12px; color: #334155; margin-bottom: 3px; }
+.src-meta { font-size: 11px; color: #94a3b8; margin-bottom: 3px; }
+.src-note { font-size: 11px; color: #64748b; line-height: 1.5; margin: 0; }
 
 .step-text { color: #64748b; font-size: 12px; }
 </style>
