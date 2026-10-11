@@ -22,7 +22,9 @@ export class ScenarioEngine {
     const netHourly = round(netMonthly / (work.dailyHours * work.workDaysMonth))
 
     const { score: rightsScore, flags: rightsFlags } = this.calcRightsScore(work, costBrk.total, personal, benefit)
-    const recommendation = netMonthly > 7000 && rightsScore >= 60 ? 'recommended' : netMonthly > 4500 ? 'viable' : 'risky'
+    // 保障缺失时封顶为 viable：否则净收入一高就出现"推荐你不参保"的反向激励
+    const incomeTier = netMonthly > 7000 ? 'recommended' : netMonthly > 4500 ? 'viable' : 'risky'
+    const recommendation = !personal.hasSocialInsurance && incomeTier === 'recommended' ? 'viable' : incomeTier
     const keyInsights = this.generateInsights(work, costs, tax, netMonthly, benefit)
 
     return { id, name, work, costs, income, costBreakdown: costBrk, tax, benefit, netMonthly, netAnnual, netHourly, rightsScore, rightsFlags, recommendation, keyInsights }
