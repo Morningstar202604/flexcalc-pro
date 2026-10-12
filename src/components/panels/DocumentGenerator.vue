@@ -128,6 +128,8 @@ const activeDoc = ref('arbitration')
 /** 仲裁请求逐项来自"补偿计算"面板的真实结果，未测算时回退为空白待填 */
 const comp = computed(() => store.compensation)
 const yuan = (n: number) => n.toLocaleString('zh-CN')
+/** 中文数字序号，超出时回退为阿拉伯数字 */
+const CN_NUM = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十']
 const claimItems = computed(() => comp.value?.items.filter(i => i.kind === 'claim' && i.amount > 0) ?? [])
 const condItems = computed(() => comp.value?.items.filter(i => i.kind === 'conditional' && i.amount > 0) ?? [])
 const requests = computed(() => [...claimItems.value, ...condItems.value])
@@ -193,7 +195,7 @@ ${requests.value.length
 事实与理由：
 申请人于____年__月__日起在${platform}平台从事外卖配送工作，日均在线${store.work.dailyHours}小时、日均接单${store.work.dailyOrders}单，月工作${store.work.workDaysMonth}天。${comp.value ? `据测算，申请月均报酬约为人民币${yuan(Math.round(store.scenarios[0]?.income.grossIncome ?? 0))}元。` : ''}工作期间，被申请人存在下述行为：
 ${comp.value
-  ? comp.value.items.filter(i => i.kind !== 'info').map((r, i) => `${'一二三四五'[i] || '五'}、${r.name}：${r.note}`).join('\n\n')
+  ? comp.value.items.filter(i => i.kind !== 'info').map((r, i) => `${CN_NUM[i] || (i + 1)}、${r.name}：${r.note}`).join('\n\n')
   : '一、未依法按时足额支付劳动报酬。\n\n二、未依法与申请人订立书面劳动合同。\n\n三、未依法为申请人缴纳社会保险费。'}
 
 综上所述，被申请人的上述行为违反了《中华人民共和国劳动合同法》《中华人民共和国社会保险法》${legalBasisLine.value ? '及' + legalBasisLine.value + '等' : ''}规定。为维护申请人合法权益，特依法向你委提出仲裁申请，请求依法支持申请人全部仲裁请求。

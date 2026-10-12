@@ -1,6 +1,6 @@
 import type { CityRule, WorkParams, CostParams, PersonalParams, ScenarioResult, ComparisonResult } from '../types'
 import { IncomeEngine } from './IncomeEngine'
-import { TaxEngine } from './TaxEngine'
+import { TaxEngine, type TaxEngineConfig } from './TaxEngine'
 import { BenefitEngine } from './BenefitEngine'
 import { round2 as round } from '../utils/number'
 
@@ -13,7 +13,11 @@ export class ScenarioEngine {
     const costBrk = incEng.calcCosts(costs)
 
     const monthlyGross = income.grossIncome
-    const tax = new TaxEngine(this.rule.tax).calcLabor(new Array(12).fill(monthlyGross), personal.specialDeductionMonth)
+    const taxEngineConfig: TaxEngineConfig = {
+      laborRemuneration: this.rule.tax.laborRemuneration,
+      soleProprietorship: this.rule.soleProprietorship
+    }
+    const tax = new TaxEngine(taxEngineConfig).calcLabor(new Array(12).fill(monthlyGross), personal.specialDeductionMonth)
     // 缴费基数可由用户自选（粤人社规〔2026〕14号第六条），未选时按申报收入夹取
     const benefit = new BenefitEngine(this.rule.benefit, this.rule.retirement).calcMonthly(
       monthlyGross, personal.hasSocialInsurance, personal.medicalTierId,

@@ -86,7 +86,7 @@ import { computed } from 'vue'
 import type { EChartsOption } from 'echarts'
 import { NCard, NGrid, NGi, NAlert, NSteps, NStep } from 'naive-ui'
 import { useMainStore } from '../../stores/main'
-import { TaxEngine } from '../../engine/TaxEngine'
+import { TaxEngine, type TaxEngineConfig } from '../../engine/TaxEngine'
 import { round2 } from '../../utils/number'
 import { axisX, axisY, GRID, legend, C } from '../../utils/chart'
 import ChartBox from '../ChartBox.vue'
@@ -94,7 +94,10 @@ import ChartBox from '../ChartBox.vue'
 const store = useMainStore()
 
 // 复用 TaxEngine（税表来自城市规则文件），不再页面内重复实现税表
-const taxEngine = computed(() => store.rule ? new TaxEngine(store.rule.tax) : null)
+const taxEngine = computed(() => store.rule ? new TaxEngine({
+  laborRemuneration: store.rule.tax.laborRemuneration,
+  soleProprietorship: store.rule.soleProprietorship
+} as TaxEngineConfig) : null)
 /** 个体户税负参数：增值税与个税是两个税种，取自规则文件而非页面硬编码 */
 const soleRule = computed(() => store.rule?.soleProprietorship)
 
@@ -127,7 +130,7 @@ const vatTax = computed(() => aboveVatThreshold.value ? round2(soleIncome.value 
 const soleTaxable = computed(() => Math.max(0, soleIncome.value * (soleRule.value?.itrIncomeRate ?? 0) - 60000))
 const itrTax = computed(() => {
   if (!taxEngine.value || soleTaxable.value <= 0) return 0
-  return taxEngine.value.calcSoleProprietorship(soleIncome.value, soleRule.value!).annualTax
+  return taxEngine.value.calcSoleProprietorship(soleIncome.value).annualTax
 })
 
 const soleTotalTax = computed(() => round2(vatTax.value + itrTax.value))
@@ -153,7 +156,7 @@ const taxCompareOption = computed<EChartsOption>(() => {
   const soleTaxes = itrVerified.value
     ? incomes.map(inc => {
         const vat = inc / 12 >= (soleRule.value?.vatThresholdMonthly ?? Infinity) ? round2(inc * (soleRule.value?.vatRate ?? 0)) : 0
-        const itr = taxEngine.value!.calcSoleProprietorship(inc, soleRule.value!).annualTax
+        const itr = taxEngine.value!.calcSoleProprietorship(inc).annualTax
         return Math.round(vat + itr)
       })
     : vatOnly

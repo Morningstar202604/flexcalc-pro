@@ -1,8 +1,14 @@
-import type { TaxRule, TaxBreakdown } from '../types'
+import type { CityRule, TaxRule, TaxBreakdown, SoleProprietorshipRule } from '../types'
 import { round2 as round } from '../utils/number'
 
+/** TaxEngine 所需的最小配置：劳务报酬税表 + 个体户核定征收配置 */
+export interface TaxEngineConfig {
+  laborRemuneration: TaxRule['laborRemuneration']
+  soleProprietorship: CityRule['soleProprietorship']
+}
+
 export class TaxEngine {
-  constructor(private rule: TaxRule) {}
+  constructor(private cfg: TaxEngineConfig) {}
 
   /**
    * 年度汇算清缴口径（个人所得税税率表一）。
@@ -12,7 +18,7 @@ export class TaxEngine {
    * 套税率表一（3%-45%）。本方法算的是后者，规则文件的 tax.method 必须如实标注。
    */
   calcLabor(monthlyIncomes: number[], specialDeductionMonth = 0): TaxBreakdown {
-    const { expenseDeductionRate, basicDeductionMonthly, expenseDeductionFixed, expenseDeductionThreshold, taxTable } = this.rule.laborRemuneration
+    const { expenseDeductionRate, basicDeductionMonthly, expenseDeductionFixed, expenseDeductionThreshold, taxTable } = this.cfg.laborRemuneration
     const fixed = expenseDeductionFixed ?? 0
     const threshold = expenseDeductionThreshold ?? 0
     let cumIncome = 0, cumTaxPaid = 0
@@ -60,22 +66,23 @@ export class TaxEngine {
    *
    * @param annualTurnover 年营业额（经营额）
    */
-  calcSoleProprietorship(annualTurnover: number, sole: { itrIncomeRate: number; itrDeductionMonthly: number; bizTaxTable: { min: number; max: number; rate: number; deduction: number }[] }): TaxBreakdown {
-    const { itrIncomeRate, itrDeductionMonthly, bizTaxTable } = sole
+  calcSoleProprietorship(annualTurnover: number): TaxBreakdown {
+    const { itrIncomeRate, itrDeductionMonthly, bizTaxTable } = this.cfg.soleProprietorship
     const turnover = Math.max(0, Number.isFinite(annualTurnover) ? annualTurnover : 0)
     const incomeRate = Math.max(0, itrIncomeRate)
     const deductionMonthly = Math.max(0, itrDeductionMonthly)
     // 年应纳税所得额 = 年营业额 × 行业所得率 − 费用减除标准 × 12
     const taxable = Math.max(0, turnover * incomeRate - deductionMonthly * 12)
     const bracket = this.findBracket(taxable, bizTaxTable)
+    // 年度税额直接由公式算出，不经过 12 期 round 之和，避免 100 → 99.96 的偏差
     const annualTax = round(Math.max(0, taxable * bracket.rate - bracket.deduction))
+    // 月度值仅用于展示，最后一月兜底使 12 期之和等于年度税额
     const monthly = round(annualTax / 12)
     const monthlyTax = new Array(12).fill(monthly)
-    // 12 期之和必须等于年度税额
-    const closedAnnual = round(monthlyTax.reduce((s, v) => s + v, 0))
+    monthlyTax[11] = round(annualTax - monthly * 11)
     return {
-      monthlyTax, annualTax: closedAnnual, effectiveRate: turnover > 0 ? round(closedAnnual / turnover * 100) : 0,
-      afterTaxIncome: round(turnover - closedAnnual), method: 'sole_proprietorship'
+      monthlyTax, annualTax, effectiveRate: turnover > 0 ? round(annualTax / turnover * 100) : 0,
+      afterTaxIncome: round(turnover - annualTax), method: 'sole_proprietorship'
     }
   }
 

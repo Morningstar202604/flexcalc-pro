@@ -90,7 +90,8 @@ const assumedReturnPct = computed(() => Math.round((store.rule?.retirement.assum
 
 const monthlyContribution = computed(() => {
   const base = store.rule?.benefit.pension.baseMin || 5000
-  return Math.round(base * 0.20)
+  const rate = store.rule?.benefit.pension.rate || 0.2
+  return Math.round(base * rate)
 })
 
 const retireResult = computed(() => {
@@ -112,6 +113,7 @@ const tierOption = computed<EChartsOption>(() => {
   if (!engine.value) return {}
   const baseMin = store.rule?.benefit.pension.baseMin || 5000
   const baseMax = store.rule?.benefit.pension.baseMax || 26000
+  const rate = store.rule?.benefit.pension.rate || 0.2
   const tiers = [
     { name: '60%档', base: baseMin },
     { name: '80%档', base: (baseMin + baseMax) * 0.4 },
@@ -120,8 +122,8 @@ const tierOption = computed<EChartsOption>(() => {
     { name: '200%档', base: baseMax * 0.8 },
   ]
   const annualReturn = store.rule?.retirement.assumedAnnualReturn ?? 0.05
-  const contribData = tiers.map(t => Math.round(t.base * 0.20))
-  const pensionData = tiers.map(t => engine.value!.projectRetirement(store.personal.currentAge, store.personal.expectedRetireAge, Math.round(t.base * 0.20), store.personal.expectedRetireAge - store.personal.currentAge, annualReturn).totalPension)
+  const contribData = tiers.map(t => Math.round(t.base * rate))
+  const pensionData = tiers.map(t => engine.value!.projectRetirement(store.personal.currentAge, store.personal.expectedRetireAge, Math.round(t.base * rate), store.personal.expectedRetireAge - store.personal.currentAge, annualReturn).totalPension)
   return {
     tooltip: { trigger: 'axis' },
     legend: legend(['月养老金', '月缴费额']),
@@ -165,8 +167,11 @@ const growthOption = computed<EChartsOption>(() => {
 const compareYears = computed(() => {
   if (!engine.value) return []
   const annualReturn = store.rule?.retirement.assumedAnnualReturn ?? 0.05
+  const rate = store.rule?.benefit.pension.rate || 0.2
+  const base = store.rule?.benefit.pension.baseMin || 5000
+  const monthly = Math.round(base * rate)
   return [15, 20, 25, 30].map(years => {
-    const r = engine.value!.projectRetirement(store.personal.currentAge, store.personal.currentAge + years, monthlyContribution.value, years, annualReturn)
+    const r = engine.value!.projectRetirement(store.personal.currentAge, store.personal.currentAge + years, monthly, years, annualReturn)
     return { years, pension: r.totalPension, account: r.personalAccount, yearsToBreakEven: Math.round((r.personalAccount / (r.totalPension || 1)) / 12) }
   })
 })

@@ -542,7 +542,7 @@ describe('V1 个体户税负：增值税与个税口径分离', () => {
     // 应纳税所得额 = 经营额 × 行业所得率 − 费用减除标准 × 12
     const taxable = Math.max(0, profit * sp.itrIncomeRate - 5000 * 12)
     expect(taxable).toBeGreaterThan(0)
-    const t = new TaxEngine(gz.tax).calcSoleProprietorship(profit, sp)
+    const t = new TaxEngine({ laborRemuneration: gz.tax.laborRemuneration, soleProprietorship: sp }).calcSoleProprietorship(profit)
     // 税额 = 应纳税所得额 × 税率 − 速算扣除数（5%-35% 经营所得税率表）
     const bracket = sp.bizTaxTable.find(b => taxable >= b.min && taxable < b.max) ?? sp.bizTaxTable[sp.bizTaxTable.length - 1]
     const expected = Math.round(Math.max(0, taxable * bracket.rate - bracket.deduction) * 100) / 100
@@ -550,6 +550,18 @@ describe('V1 个体户税负：增值税与个税口径分离', () => {
     // 12 期之和必须等于年度税额
     expect(t.monthlyTax.reduce((s, v) => s + v, 0)).toBeCloseTo(t.annualTax, 2)
     expect(t.method).toBe('sole_proprietorship')
+  })
+
+  it('calcSoleProprietorship 年度税额与公式手算值一致（非 12 期之和）', () => {
+    const gz = JSON.parse(readFileSync('public/rules/guangzhou.json', 'utf8')) as CityRule
+    const sp = gz.soleProprietorship
+    const profit = 1200000
+    const taxable = Math.max(0, profit * sp.itrIncomeRate - 5000 * 12)
+    const bracket = sp.bizTaxTable.find(b => taxable >= b.min && taxable < b.max) ?? sp.bizTaxTable[sp.bizTaxTable.length - 1]
+    const expected = Math.round(Math.max(0, taxable * bracket.rate - bracket.deduction) * 100) / 100
+    const t = new TaxEngine({ laborRemuneration: gz.tax.laborRemuneration, soleProprietorship: sp }).calcSoleProprietorship(profit)
+    // annualTax 必须等于公式手算值，而非 12 期 round 之和
+    expect(t.annualTax).toBe(expected)
   })
 
   it('calcSoleProprietorship 的税率表来自规则文件而非代码写死', () => {
@@ -562,7 +574,7 @@ describe('V1 个体户税负：增值税与个税口径分离', () => {
   it('低收入个体户应纳税所得额为 0 时税额为 0', () => {
     const gz = JSON.parse(readFileSync('public/rules/guangzhou.json', 'utf8')) as CityRule
     // 60000 × 10% − 60000 = 0
-    const t = new TaxEngine(gz.tax).calcSoleProprietorship(60000, gz.soleProprietorship)
+    const t = new TaxEngine({ laborRemuneration: gz.tax.laborRemuneration, soleProprietorship: gz.soleProprietorship }).calcSoleProprietorship(60000)
     expect(t.annualTax).toBe(0)
   })
 

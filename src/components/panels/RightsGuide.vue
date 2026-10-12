@@ -25,24 +25,24 @@
             <div class="checklist-section">
               <h4>劳动关系证明（先证明你跟平台有关系）</h4>
               <div class="checklist">
-                <label><input type="checkbox" /> 平台APP注册信息截图（手机号、实名认证）</label>
-                <label><input type="checkbox" /> 工牌/工服/配送箱（拍照存档）</label>
-                <label><input type="checkbox" /> 银行流水（标注"XX平台报酬"的记录）</label>
-                <label><input type="checkbox" /> 微信/QQ工作群聊天记录</label>
-                <label><input type="checkbox" /> 考勤记录/系统派单记录（APP内导出或截图）</label>
-                <label><input type="checkbox" /> 平台服务协议/注册时签署的电子合同</label>
+                <label><input type="checkbox" v-model="evidenceChecks[1]" /> 平台APP注册信息截图（手机号、实名认证）</label>
+                <label><input type="checkbox" v-model="evidenceChecks[2]" /> 工牌/工服/配送箱（拍照存档）</label>
+                <label><input type="checkbox" v-model="evidenceChecks[3]" /> 银行流水（标注"XX平台报酬"的记录）</label>
+                <label><input type="checkbox" v-model="evidenceChecks[4]" /> 微信/QQ工作群聊天记录</label>
+                <label><input type="checkbox" v-model="evidenceChecks[5]" /> 考勤记录/系统派单记录（APP内导出或截图）</label>
+                <label><input type="checkbox" v-model="evidenceChecks[6]" /> 平台服务协议/注册时签署的电子合同</label>
               </div>
             </div>
 
             <div class="checklist-section">
               <h4>侵权事实证明（你被侵害了什么）</h4>
               <div class="checklist">
-                <label><input type="checkbox" /> 工资单/收入明细截图（含扣款记录及原因）</label>
-                <label><input type="checkbox" /> 派单/计价规则变化前后的对比截图</label>
-                <label><input type="checkbox" /> 罚款/扣款通知及依据</label>
-                <label><input type="checkbox" /> 账号冻结/封号通知及历史接单记录</label>
-                <label><input type="checkbox" /> 诊断证明/病历（工伤场景）</label>
-                <label><input type="checkbox" /> 工作时间记录（系统打卡/在线时长截图）</label>
+                <label><input type="checkbox" v-model="evidenceChecks[7]" /> 工资单/收入明细截图（含扣款记录及原因）</label>
+                <label><input type="checkbox" v-model="evidenceChecks[8]" /> 派单/计价规则变化前后的对比截图</label>
+                <label><input type="checkbox" v-model="evidenceChecks[9]" /> 罚款/扣款通知及依据</label>
+                <label><input type="checkbox" v-model="evidenceChecks[10]" /> 账号冻结/封号通知及历史接单记录</label>
+                <label><input type="checkbox" v-model="evidenceChecks[11]" /> 诊断证明/病历（工伤场景）</label>
+                <label><input type="checkbox" v-model="evidenceChecks[12]" /> 工作时间记录（系统打卡/在线时长截图）</label>
               </div>
             </div>
 
@@ -352,6 +352,9 @@ import { ref } from 'vue'
 import { NCard, NAlert, NGrid, NGi, NDivider, NTable } from 'naive-ui'
 
 const activeStep = ref('evidence')
+
+/** 证据清单勾选状态（组件内本地状态，不持久化） */
+const evidenceChecks = ref<Record<string, boolean>>({})
 
 const steps = [
   { id: 'evidence', num: '1', name: '固定证据' },

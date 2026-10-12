@@ -9,8 +9,8 @@
             <div class="d-row"><span>时段补贴 (高峰 × {{ rule?.income.timeSubsidy.multiplier }})</span><b>¥{{ s.income.subsidyPay.toLocaleString() }}</b></div>
             <div v-if="s.income.bonusPay > 0" class="d-row"><span>冲单奖励</span><b>¥{{ s.income.bonusPay }}</b></div>
             <div class="d-row total"><span>月总收入</span><b>¥{{ s.income.grossIncome.toLocaleString() }}</b></div>
-            <div class="d-row"><span>日均收入</span><b>¥{{ (s.income.grossIncome / s.work.workDaysMonth).toFixed(0) }}</b></div>
-            <div class="d-row"><span>时均收入</span><b>¥{{ (s.income.grossIncome / (s.work.dailyHours * s.work.workDaysMonth)).toFixed(1) }}/h</b></div>
+            <div class="d-row"><span>日均收入</span><b>¥{{ safeDiv(s.income.grossIncome, s.work.workDaysMonth, 0) }}</b></div>
+            <div class="d-row"><span>时均收入</span><b>¥{{ safeDiv(s.income.grossIncome, s.work.dailyHours * s.work.workDaysMonth, 1) }}/h</b></div>
           </div>
         </n-card>
       </n-gi>
@@ -26,7 +26,7 @@
             <div class="d-row"><span>车辆折旧</span><b>¥{{ s.costs.vehicleDepreciationMonth.toLocaleString() }}</b></div>
             <div class="d-row"><span>其他</span><b>¥{{ s.costs.otherCostMonth.toLocaleString() }}</b></div>
             <div class="d-row total"><span>月总成本</span><b class="danger">¥{{ s.costBreakdown.total.toLocaleString() }}</b></div>
-            <div class="d-row"><span>每单成本</span><b>¥{{ (s.costBreakdown.total / (s.work.dailyOrders * s.work.workDaysMonth)).toFixed(2) }}/单</b></div>
+            <div class="d-row"><span>每单成本</span><b>¥{{ safeDiv(s.costBreakdown.total, s.work.dailyOrders * s.work.workDaysMonth, 2) }}/单</b></div>
           </div>
         </n-card>
       </n-gi>
@@ -62,6 +62,12 @@ import ChartBox from '../ChartBox.vue'
 const store = useMainStore()
 const s = computed(() => store.scenarios[0])
 const rule = computed(() => store.rule)
+
+/** 安全除法：除数非有限或为 0 时返回 0，避免 Infinity 渲染到界面 */
+function safeDiv(numerator: number, denominator: number, digits: number): string {
+  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator === 0) return '0'
+  return (numerator / denominator).toFixed(digits)
+}
 
 const waterfallOption = computed<EChartsOption>(() => {
   const v = s.value

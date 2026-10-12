@@ -67,13 +67,14 @@ export class BenefitEngine {
 
     const months = Math.max(0, Math.round((safeRetire - safeAge) * 12))
     let balance = 0
+    const safeReturn = Number.isFinite(annualReturn) ? Math.min(Math.max(annualReturn, -1), 1) : 0.05
     for (let i = 0; i < months; i++) {
-      balance = balance * (1 + annualReturn / 12) + contribution
+      balance = balance * (1 + safeReturn / 12) + contribution
     }
     const personalAccount = round(balance)
     // 国发〔2005〕38号：基础养老金 = 计发基数 ×(1+平均缴费指数)÷2 × 缴费年限 × 1%
     // 缴费指数低于 0.6 时按 0.6 计（低于该档需按 0.6/指数 的折扣系数调整，此处取下限口径）
-    const idx = Math.max(0.6, paymentIndex)
+    const idx = Math.max(0.6, Number.isFinite(paymentIndex) ? paymentIndex : 0.6)
     const basePension = round(benefitBase * (1 + idx) / 2 * safeYears * 0.01)
     const personalPension = personalAccount > 0 ? round(personalAccount / 139) : 0
     return { personalAccount, basePension, personalPension, totalPension: round(basePension + personalPension), months }
