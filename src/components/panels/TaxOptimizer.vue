@@ -127,7 +127,7 @@ const vatTax = computed(() => aboveVatThreshold.value ? round2(soleIncome.value 
 const soleTaxable = computed(() => Math.max(0, soleIncome.value * (soleRule.value?.itrIncomeRate ?? 0) - 60000))
 const itrTax = computed(() => {
   if (!taxEngine.value || soleTaxable.value <= 0) return 0
-  return taxEngine.value.calcSoleProprietorship(soleTaxable.value).annualTax
+  return taxEngine.value.calcSoleProprietorship(soleIncome.value, soleRule.value!).annualTax
 })
 
 const soleTotalTax = computed(() => round2(vatTax.value + itrTax.value))
@@ -153,8 +153,7 @@ const taxCompareOption = computed<EChartsOption>(() => {
   const soleTaxes = itrVerified.value
     ? incomes.map(inc => {
         const vat = inc / 12 >= (soleRule.value?.vatThresholdMonthly ?? Infinity) ? round2(inc * (soleRule.value?.vatRate ?? 0)) : 0
-        const taxable = Math.max(0, inc * (soleRule.value?.itrIncomeRate ?? 0) - 60000)
-        const itr = taxable > 0 ? taxEngine.value!.calcSoleProprietorship(taxable).annualTax : 0
+        const itr = taxEngine.value!.calcSoleProprietorship(inc, soleRule.value!).annualTax
         return Math.round(vat + itr)
       })
     : vatOnly

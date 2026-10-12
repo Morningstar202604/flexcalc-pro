@@ -49,21 +49,33 @@ export class TaxEngine {
   }
 
   /**
-   * 个体工商户经营所得。
-   * taxRate 必须是「小数」形式（如 0.01），早期版本在引擎用 0.01、在 UI 用 1.0，
-   * 任一方向接错即变成 1% 或 100%。核定征收率因地区与行业差异极大，
-   * 无权威来源时调用方应传占位值并自行提示，不得当作确定税额。
+   * 个体工商户经营所得个人所得税（核定征收）。
+   *
+   * 核定公式（粤税发〔2018〕79号）：
+   *   应纳税所得额 = 经营额 × 行业所得率 − 费用减除标准 × 实际经营月数
+   *   应纳税额 = 应纳税所得额 × 税率 − 速算扣除数（经营所得税率表 5%-35%）
+   *
+   * 早期实现错误地把「增值税 1% 优惠税率」当作个税税率，导致个体户税负被严重低估。
+   * 现在增值税与个税分列：增值税见 soleProprietorship.vatRate，个税走本方法。
+   *
+   * @param annualTurnover 年营业额（经营额）
    */
-  calcSoleProprietorship(annualProfit: number, taxRate = 0.01): TaxBreakdown {
-    const annualTax = round(Math.max(0, Number.isFinite(annualProfit) ? annualProfit : 0) * taxRate)
+  calcSoleProprietorship(annualTurnover: number, sole: { itrIncomeRate: number; itrDeductionMonthly: number; bizTaxTable: { min: number; max: number; rate: number; deduction: number }[] }): TaxBreakdown {
+    const { itrIncomeRate, itrDeductionMonthly, bizTaxTable } = sole
+    const turnover = Math.max(0, Number.isFinite(annualTurnover) ? annualTurnover : 0)
+    const incomeRate = Math.max(0, itrIncomeRate)
+    const deductionMonthly = Math.max(0, itrDeductionMonthly)
+    // 年应纳税所得额 = 年营业额 × 行业所得率 − 费用减除标准 × 12
+    const taxable = Math.max(0, turnover * incomeRate - deductionMonthly * 12)
+    const bracket = this.findBracket(taxable, bizTaxTable)
+    const annualTax = round(Math.max(0, taxable * bracket.rate - bracket.deduction))
     const monthly = round(annualTax / 12)
     const monthlyTax = new Array(12).fill(monthly)
-    // 12 期之和必须等于年度税额，否则 UI 上月列相加对不上年度数
+    // 12 期之和必须等于年度税额
     const closedAnnual = round(monthlyTax.reduce((s, v) => s + v, 0))
-    const profit = Math.max(0, Number.isFinite(annualProfit) ? annualProfit : 0)
     return {
-      monthlyTax, annualTax: closedAnnual, effectiveRate: profit > 0 ? round(closedAnnual / profit * 100) : 0,
-      afterTaxIncome: round(profit - closedAnnual), method: 'sole_proprietorship'
+      monthlyTax, annualTax: closedAnnual, effectiveRate: turnover > 0 ? round(closedAnnual / turnover * 100) : 0,
+      afterTaxIncome: round(turnover - closedAnnual), method: 'sole_proprietorship'
     }
   }
 

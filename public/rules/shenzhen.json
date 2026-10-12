@@ -105,7 +105,23 @@
   "soleProprietorship": {
     "vatRate": 0.01,
     "vatThresholdMonthly": 100000,
-    "itrIncomeRate": 0.1
+    "itrIncomeRate": 0.1,
+    "itrDeductionMonthly": 5000,
+    "bizTaxTable": [
+      { "min": 0, "max": 30000, "rate": 0.05, "deduction": 0 },
+      { "min": 30000, "max": 90000, "rate": 0.1, "deduction": 1500 },
+      { "min": 90000, "max": 300000, "rate": 0.2, "deduction": 10500 },
+      { "min": 300000, "max": 500000, "rate": 0.3, "deduction": 40500 },
+      { "min": 500000, "max": 999999999, "rate": 0.35, "deduction": 65500 }
+    ],
+    "itrDeductionMonthly": 5000,
+    "bizTaxTable": [
+      { "min": 0, "max": 30000, "rate": 0.05, "deduction": 0 },
+      { "min": 30000, "max": 90000, "rate": 0.1, "deduction": 1500 },
+      { "min": 90000, "max": 300000, "rate": 0.2, "deduction": 10500 },
+      { "min": 300000, "max": 500000, "rate": 0.3, "deduction": 40500 },
+      { "min": 500000, "max": 999999999, "rate": 0.35, "deduction": 65500 }
+    ]
   },
   "sources": {
     "pension": {

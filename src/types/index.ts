@@ -45,6 +45,10 @@ export interface SoleProprietorshipRule {
   vatThresholdMonthly: number
   /** 个税核定征收的行业所得率（小数），随行业与地区变化 */
   itrIncomeRate: number
+  /** 核定征收的费用减除标准（元/月），与工资薪金同口径 */
+  itrDeductionMonthly: number
+  /** 经营所得个人所得税税率表（5%-35%） */
+  bizTaxTable: TaxBracket[]
 }
 
 /** 养老金计发参数。benefitBaseMonthly 为本城计发基数，深圳单列、其余地市用全省口径 */

@@ -535,13 +535,35 @@ describe('V1 个体户税负：增值税与个税口径分离', () => {
     })
   }
 
-  it('calcSoleProprietorship 返回的分项税额与传入口径一致且年度闭合', () => {
+  it('calcSoleProprietorship 按核定征收公式计算并闭合', () => {
     const gz = JSON.parse(readFileSync('public/rules/guangzhou.json', 'utf8')) as CityRule
-    const t = new TaxEngine(gz.tax).calcSoleProprietorship(120000, 0.01)
-    expect(t.method).toBe('sole_proprietorship')
-    expect(t.annualTax).toBeCloseTo(1200, 2)
+    const sp = gz.soleProprietorship
+    const profit = 1200000
+    // 应纳税所得额 = 经营额 × 行业所得率 − 费用减除标准 × 12
+    const taxable = Math.max(0, profit * sp.itrIncomeRate - 5000 * 12)
+    expect(taxable).toBeGreaterThan(0)
+    const t = new TaxEngine(gz.tax).calcSoleProprietorship(profit, sp)
+    // 税额 = 应纳税所得额 × 税率 − 速算扣除数（5%-35% 经营所得税率表）
+    const bracket = sp.bizTaxTable.find(b => taxable >= b.min && taxable < b.max) ?? sp.bizTaxTable[sp.bizTaxTable.length - 1]
+    const expected = Math.round(Math.max(0, taxable * bracket.rate - bracket.deduction) * 100) / 100
+    expect(t.annualTax).toBeCloseTo(expected, 1)
     // 12 期之和必须等于年度税额
     expect(t.monthlyTax.reduce((s, v) => s + v, 0)).toBeCloseTo(t.annualTax, 2)
+    expect(t.method).toBe('sole_proprietorship')
+  })
+
+  it('calcSoleProprietorship 的税率表来自规则文件而非代码写死', () => {
+    const gz = JSON.parse(readFileSync('public/rules/guangzhou.json', 'utf8')) as CityRule
+    expect(gz.soleProprietorship.bizTaxTable[0].rate).toBe(0.05)
+    expect(gz.soleProprietorship.bizTaxTable[gz.soleProprietorship.bizTaxTable.length - 1].rate).toBe(0.35)
+    expect(gz.soleProprietorship.itrDeductionMonthly).toBe(5000)
+  })
+
+  it('低收入个体户应纳税所得额为 0 时税额为 0', () => {
+    const gz = JSON.parse(readFileSync('public/rules/guangzhou.json', 'utf8')) as CityRule
+    // 60000 × 10% − 60000 = 0
+    const t = new TaxEngine(gz.tax).calcSoleProprietorship(60000, gz.soleProprietorship)
+    expect(t.annualTax).toBe(0)
   })
 
   /**
