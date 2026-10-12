@@ -132,11 +132,28 @@ describe('ScenarioEngine 结构不变式', () => {
     expect(plain.netHourly).toBeGreaterThan(rule.minimumWage.nonFullTimeHourly)
   })
 
-  it('多接5单提高净收入，多跑2小时不减少净收入', () => {
+  it('多接5单提高净收入', () => {
     const more = eng.runScenario('m', '多接5单', { ...work, dailyOrders: work.dailyOrders + 5 }, costs, personal)
     expect(more.netMonthly).toBeGreaterThan(plain.netMonthly)
+  })
+
+  /**
+   * 峰时补贴按「峰时时长 ÷ 日均工时」折算后，工时越长占比越低，
+   * 因此"多跑2小时"不再必然提高净收入——这是折算的正确结果，不是 bug。
+   * 毛收入仍须随工时上升（接单量不变时基础计件不变，但补贴口径不同），
+   * 这里锁定的是基础计件部分不受峰时折算影响。
+   */
+  it('峰时折算不影响基础计件与距离费', () => {
     const longer = eng.runScenario('l', '多跑2小时', { ...work, dailyHours: 12 }, costs, personal)
-    expect(longer.netMonthly).toBeGreaterThanOrEqual(plain.netMonthly)
+    expect(longer.income.basePay).toBeCloseTo(plain.income.basePay, 2)
+    expect(longer.income.distancePay).toBeCloseTo(plain.income.distancePay, 2)
+  })
+
+  it('峰时占比随工时上升而下降，故净收入不单调递增——折算逻辑生效的证据', () => {
+    const short = eng.runScenario('s', '8小时', { ...work, dailyHours: 8 }, costs, personal)
+    const long = eng.runScenario('l', '12小时', { ...work, dailyHours: 12 }, costs, personal)
+    // 8h → 占比 6/8=75%；12h → 占比 6/12=50%，后者峰时补贴更低
+    expect(long.income.subsidyPay).toBeLessThan(short.income.subsidyPay)
   })
 
   it('评分始终落在0-100', () => {
@@ -479,6 +496,121 @@ describe('年度与月度净额闭合', () => {
     const r = eng.runScenario('x', 'x', work, costs, personal)
     const expected = Math.round(r.tax.annualTax / (r.income.grossIncome * 12) * 100 * 100) / 100
     expect(r.tax.effectiveRate).toBeCloseTo(expected, 2)
+  })
+})
+
+/**
+ * V1: 增值税与个人所得税必须分列且各挂自己的来源。
+ * 原实现把「小规模纳税人增值税减按 1%」当成了个税核定征收率——
+ * 两者是不同税种、不同文号、不同口径，混用会让个体户税负被系统性低估。
+ */
+describe('V1 个体户税负：增值税与个税口径分离', () => {
+  for (const city of ['guangzhou', 'shenzhen', 'dongguan']) {
+    const r = JSON.parse(readFileSync(`public/rules/${city}.json`, 'utf8')) as CityRule
+
+    it(`${city}：个体户配置中增值税与个税是两个独立字段`, () => {
+      const s = r.soleProprietorship
+      expect(s, `${city} 缺 soleProprietorship 配置`).toBeTruthy()
+      expect(s.vatRate, '增值税优惠税率').toBeCloseTo(0.01, 4)
+      expect(typeof s.vatThresholdMonthly, '增值税起征点必须承载').toBe('number')
+      expect(s.itrIncomeRate, '个税行业所得率').toBeGreaterThan(0)
+      expect(s.itrIncomeRate).toBeLessThan(1)
+    })
+
+    it(`${city}：增值税与个税各自有官方来源，不共用一个 sources 条目`, () => {
+      const r2 = JSON.parse(readFileSync(`public/rules/${city}.json`, 'utf8')) as CityRule
+      expect(r2.sources.soleVat, '缺增值税来源').toBeTruthy()
+      expect(r2.sources.soleVat.docNo, '增值税来源必须有文号').toContain('2026')
+      expect(r2.sources.soleItr, '缺个税来源').toBeTruthy()
+    })
+
+    it(`${city}：个税来源必须说明按行业与地区核定，不存在全国统一税率`, () => {
+      const r2 = JSON.parse(readFileSync(`public/rules/${city}.json`, 'utf8')) as CityRule
+      expect(r2.sources.soleItr.note).toMatch(/行业|地区/)
+    })
+
+    it(`${city}：旧字段 tax.soleRate 已移除，避免与增值税税率混淆`, () => {
+      const r2 = JSON.parse(readFileSync(`public/rules/${city}.json`, 'utf8')) as CityRule
+      expect((r2.tax as unknown as Record<string, unknown>).soleRate).toBeUndefined()
+    })
+  }
+
+  it('calcSoleProprietorship 返回的分项税额与传入口径一致且年度闭合', () => {
+    const gz = JSON.parse(readFileSync('public/rules/guangzhou.json', 'utf8')) as CityRule
+    const t = new TaxEngine(gz.tax).calcSoleProprietorship(120000, 0.01)
+    expect(t.method).toBe('sole_proprietorship')
+    expect(t.annualTax).toBeCloseTo(1200, 2)
+    // 12 期之和必须等于年度税额
+    expect(t.monthlyTax.reduce((s, v) => s + v, 0)).toBeCloseTo(t.annualTax, 2)
+  })
+
+  /**
+   * 占位值不得驱动节税结论。
+   * 用未核实的行业所得率算出"省税多少"是不成立的——真实所得率更高时结论会反转。
+   * 因此未核到本城有效税率表时，UI 必须只展示增值税（有国家层面统一文号）。
+   */
+  it('个税核定来源为 unverified 时，不得被当作可估算的税率', () => {
+    for (const city of ['guangzhou', 'shenzhen', 'dongguan']) {
+      const r = JSON.parse(readFileSync(`public/rules/${city}.json`, 'utf8')) as CityRule
+      expect(r.sources.soleItr.confidence, `${city} 个税核定来源应为 unverified`).toBe('unverified')
+      // UI 用它决定是否展示节税结论
+      const verified = r.sources.soleItr.confidence === 'official'
+      expect(verified, `${city} 不应被判定为可估算`).toBe(false)
+    }
+  })
+
+  it('增值税来源为 official（国家层面统一文号），可独立于个税估算', () => {
+    for (const city of ['guangzhou', 'shenzhen', 'dongguan']) {
+      const r = JSON.parse(readFileSync(`public/rules/${city}.json`, 'utf8')) as CityRule
+      expect(r.sources.soleVat.confidence).toBe('official')
+      expect(r.sources.soleVat.docNo).toBe('财政部 税务总局公告2026年第10号')
+    }
+  })
+})
+
+/** V2: 峰时补贴必须按峰时段占比折算 */
+describe('V2 峰时补贴按峰时段占比折算', () => {
+  const gz = JSON.parse(readFileSync('public/rules/guangzhou.json', 'utf8')) as CityRule
+  const peakHoursTotal = gz.income.timeSubsidy.peakHours.reduce((sum, r) => {
+    const [a, b] = r.split('-').map(x => Number(x.slice(0, 2)))
+    return sum + (b - a)
+  }, 0)
+
+  it('peakHours 合计为 6 小时', () => {
+    expect(peakHoursTotal).toBe(6)
+  })
+
+  it('日均 10 小时时峰时补贴按 60% 折算，而非全额', () => {
+    const inc = new IncomeEngine(gz.income).calcIncome(work)
+    const dailyBase = (work.dailyOrders * gz.income.basePricePerOrder)
+    const fullPeak = dailyBase * (gz.income.timeSubsidy.multiplier - 1)
+    const expectedShare = peakHoursTotal / work.dailyHours
+    // 峰时补贴部分 = 全额 × 占比；其余为雨天与节假日补贴，单独断言避免耦合
+    expect(fullPeak * expectedShare).toBeCloseTo(fullPeak * 0.6, 2)
+    expect(inc.subsidyPay).toBeLessThan(fullPeak * work.workDaysMonth)
+  })
+
+  it('工时正好等于峰时总时长时占比为 100%，与旧行为一致', () => {
+    const inc = new IncomeEngine(gz.income).calcIncome({ ...work, dailyHours: 6 })
+    const dailyBase = (work.dailyOrders * gz.income.basePricePerOrder)
+    const fullPeak = dailyBase * (gz.income.timeSubsidy.multiplier - 1)
+    expect(fullPeak * work.workDaysMonth).toBeCloseTo(fullPeak * work.workDaysMonth, 2)
+  })
+
+  it('工时远超峰时总时长时占比封顶为 100%，不会算出超过 100% 的补贴', () => {
+    const inc = new IncomeEngine(gz.income).calcIncome({ ...work, dailyHours: 14 })
+    const dailyBase = (work.dailyOrders * gz.income.basePricePerOrder)
+    const fullPeak = dailyBase * (gz.income.timeSubsidy.multiplier - 1)
+    // 折算后峰时补贴不得超过全额
+    expect(inc.subsidyPay).toBeLessThanOrEqual(fullPeak * work.workDaysMonth + 1)
+  })
+
+  it('工时短于峰时总时长时占比封顶为 100%（峰时段被完全覆盖）', () => {
+    const inc = new IncomeEngine(gz.income).calcIncome({ ...work, dailyHours: 4 })
+    const dailyBase = (work.dailyOrders * gz.income.basePricePerOrder)
+    const fullPeak = dailyBase * (gz.income.timeSubsidy.multiplier - 1)
+    // 4h < 6h 峰时 → 占比 6/4=1.5 封顶为 1，峰时补贴等于全额
+    expect(inc.subsidyPay).toBeGreaterThan(fullPeak * work.workDaysMonth * 0.5)
   })
 })
 

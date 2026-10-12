@@ -64,6 +64,18 @@ jobs:
             // 退休计发基数是外部数据，不得在代码或数据里被静默改成写死值
             if (!(r.retirement.benefitBaseMonthly > 0)) throw new Error(f+' 计发基数非法');
             if (!r.sources.retirement) throw new Error(f+' 缺 retirement 来源');
+
+            // 个体户税负：增值税与个税是两个税种，必须分列且各有官方来源。
+            // 历史上曾把增值税的 1% 优惠税率当作个税核定征收率，导致税负被严重低估。
+            const sp = r.soleProprietorship;
+            if (!sp) throw new Error(f+' 缺 soleProprietorship 配置');
+            if (!(sp.vatRate > 0 && sp.vatRate < 0.1)) throw new Error(f+' 增值税税率越界: '+sp.vatRate);
+            if (!(sp.vatThresholdMonthly > 0)) throw new Error(f+' 增值税起征点非法');
+            if (!(sp.itrIncomeRate > 0 && sp.itrIncomeRate < 1)) throw new Error(f+' 个税所得率越界: '+sp.itrIncomeRate);
+            if (!r.sources.soleVat || !r.sources.soleVat.docNo) throw new Error(f+' 个体户增值税缺官方来源');
+            if (!r.sources.soleItr) throw new Error(f+' 个体户个税缺来源');
+            // 旧的 tax.soleRate 已废止，留着就会被误当成个税税率
+            if (r.tax.soleRate !== undefined) throw new Error(f+' tax.soleRate 已废止，请改用 soleProprietorship.itrIncomeRate');
           }
           console.log('rule provenance OK');
         "

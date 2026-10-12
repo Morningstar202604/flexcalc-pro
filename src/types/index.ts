@@ -27,7 +27,24 @@ export interface CityRule {
   minimumWage: { monthly: number; nonFullTimeHourly: number }
   /** 退休测算参数：计发基数与假想收益率均为外部输入，禁止在代码里写死 */
   retirement: RetirementRule
+  /** 个体工商户税负参数：增值税与个人所得税是两个税种，必须分列 */
+  soleProprietorship: SoleProprietorshipRule
   sources: Record<string, SourceRef>
+}
+
+/**
+ * 个体工商户税负。
+ * 增值税与个人所得税是两套独立体系：
+ * - 增值税适用小规模纳税人简易计税的减按优惠（国家层面统一）
+ * - 个税核定征收按「行业所得率法」，行业与地区分别核定，不存在全国统一税率
+ */
+export interface SoleProprietorshipRule {
+  /** 小规模纳税人增值税优惠税率（小数） */
+  vatRate: number
+  /** 增值税起征点（月销售额），未达则免征 */
+  vatThresholdMonthly: number
+  /** 个税核定征收的行业所得率（小数），随行业与地区变化 */
+  itrIncomeRate: number
 }
 
 /** 养老金计发参数。benefitBaseMonthly 为本城计发基数，深圳单列、其余地市用全省口径 */

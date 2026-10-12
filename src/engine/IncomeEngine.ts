@@ -8,11 +8,15 @@ export class IncomeEngine {
     const days = safeInt(p.workDaysMonth, 1, 31, 1)
     const orders = safeNum(p.dailyOrders, 0, 200, 0)
     const dist = safeNum(p.avgDistance, 0, 50, 0)
+    const hours = safeNum(p.dailyHours, 1, 24, 8)
 
     const basePay = orders * this.rule.basePricePerOrder * days
     const distancePay = orders * dist * this.rule.distanceRate * days
     const dailyBase = basePay / days
-    const peakSubsidy = dailyBase * (this.rule.timeSubsidy.multiplier - 1)
+    // 峰时补贴只作用于峰时段内的单量：占比 = 峰时总时长 ÷ 日均工时，上限 100%
+    // 不做折算会把默认参数下的毛收入虚高约 455 元/月
+    const peakShare = peakHoursTotal(this.rule.timeSubsidy.peakHours) / hours
+    const peakSubsidy = dailyBase * (this.rule.timeSubsidy.multiplier - 1) * Math.min(1, peakShare)
     const rainExtra = safeNum(p.rainDaysMonth, 0, 31, 0) * dailyBase * (this.rule.rainSurcharge - 1)
     const holidayExtra = safeNum(p.holidayDaysMonth, 0, 31, 0) * dailyBase * (this.rule.holidayMultiplier - 1)
     const subsidyPay = peakSubsidy * days + rainExtra + holidayExtra
@@ -34,6 +38,14 @@ export class IncomeEngine {
     const total = parts.reduce((s, v) => s + v, 0)
     return { ...p, total: round(total) }
   }
+}
+
+/** 把 "11:00-13:00" 这类时段解析为小时数 */
+function peakHoursTotal(peakHours: string[]): number {
+  return peakHours.reduce((sum, range) => {
+    const [a, b] = range.split('-').map(t => Number(t.slice(0, 2)))
+    return sum + (Number.isFinite(a) && Number.isFinite(b) && b > a ? b - a : 0)
+  }, 0)
 }
 
 function safeNum(v: unknown, min: number, max: number, fallback: number): number {
