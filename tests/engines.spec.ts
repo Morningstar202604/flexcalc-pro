@@ -193,3 +193,100 @@ describe('规则文件溯源约束', () => {
     }
   }
 })
+
+/**
+ * R1: 外部参数必须是官方原文值。
+ * 这组断言存在的意义：早期版本里深圳直接抄了广州的医保基数、东莞抄了估算值，
+ * 三城看上去"差不多"就没人发现。每个城市的每个数都必须锁死各自的官方口径。
+ */
+const OFFICIAL_PARAMS: Record<string, {
+  pensionBaseMin: number
+  pensionBaseMax: number
+  medicalBaseMin: number
+  medicalBaseMax: number
+  medicalRate: number
+  sourceKey: string
+  docNo?: string
+}> = {
+  // 粤人社发〔2026〕24号：2026-01-01 起下限 5510；2026-07-01 起下限调整为 5521、上限 27603
+  guangzhou: { pensionBaseMin: 5521, pensionBaseMax: 27603, medicalBaseMin: 6234, medicalBaseMax: 31170, medicalRate: 0.08, sourceKey: 'medical', docNo: '穗医保规字〔2026〕4号' },
+  // 深圳市医疗保障局 2025-12-29 公告：下限 6727、上限 33633；灵活就业人员费率 2026-01-01 起恢复 8%
+  shenzhen: { pensionBaseMin: 5521, pensionBaseMax: 27603, medicalBaseMin: 6727, medicalBaseMax: 33633, medicalRate: 0.08, sourceKey: 'medical' },
+  // 东莞 2026年度医保缴费基数和费率表：下限 4775、上限 27549；单建统筹默认档 3.65%
+  dongguan: { pensionBaseMin: 5521, pensionBaseMax: 27603, medicalBaseMin: 4775, medicalBaseMax: 27549, medicalRate: 0.0365, sourceKey: 'medical' },
+}
+
+describe('R1 外部参数必须是各城官方原文值', () => {
+  for (const city of ['guangzhou', 'shenzhen', 'dongguan']) {
+    const r = JSON.parse(readFileSync(`public/rules/${city}.json`, 'utf8')) as CityRule
+    const exp = OFFICIAL_PARAMS[city]
+
+    it(`${city}：养老基数上下限为粤人社发〔2026〕24号现行值`, () => {
+      expect(r.benefit.pension.baseMin).toBe(exp.pensionBaseMin)
+      expect(r.benefit.pension.baseMax).toBe(exp.pensionBaseMax)
+    })
+
+    it(`${city}：医保基数与费率取自本城医保部门原文，不得跨城抄值`, () => {
+      expect(r.benefit.medical.baseMin).toBe(exp.medicalBaseMin)
+      expect(r.benefit.medical.baseMax).toBe(exp.medicalBaseMax)
+      expect(r.benefit.medical.rate).toBeCloseTo(exp.medicalRate, 4)
+    })
+
+    it(`${city}：医保来源已回溯官方原文（official 且带链接）`, () => {
+      const s = r.sources[exp.sourceKey]
+      expect(s.confidence, `${city} 医保来源应为 official`).toBe('official')
+      expect(s.url, `${city} 医保来源必须有原文链接`).toBeTruthy()
+    })
+  }
+
+  it('三城医保基数互不相同——相同即说明又抄了同一个城市', () => {
+    const g = OFFICIAL_PARAMS.guangzhou, s = OFFICIAL_PARAMS.shenzhen, d = OFFICIAL_PARAMS.dongguan
+    expect(new Set([g.medicalBaseMax, s.medicalBaseMax, d.medicalBaseMax]).size).toBe(3)
+    expect(new Set([g.medicalBaseMin, s.medicalBaseMin, d.medicalBaseMin]).size).toBe(3)
+  })
+})
+
+/** R3/R4: 退休测算必须走规则文件的计发基数，不得写死 */
+describe('R3/R4 退休测算使用规则文件计发基数', () => {
+  const base = JSON.parse(readFileSync('public/rules/guangzhou.json', 'utf8')) as CityRule
+
+  it('基础养老金按 国发〔2005〕38号 公式 = 计发基数×(1+缴费指数)÷2×年限×1%', () => {
+    const eng = new BenefitEngine(base.benefit, base.retirement)
+    const r = eng.projectRetirement(25, 60, 1200, 15, 0.05, 0.6)
+    const expected = base.retirement.benefitBaseMonthly * (1 + 0.6) / 2 * 15 * 0.01
+    expect(r.basePension).toBeCloseTo(Math.round(expected * 100) / 100, 1)
+  })
+
+  it('个人账户养老金按 60 岁计发月数 139 除算', () => {
+    const eng = new BenefitEngine(base.benefit, base.retirement)
+    const r = eng.projectRetirement(25, 60, 1200, 15, 0.05, 0.6)
+    expect(r.personalPension).toBeCloseTo(Math.round(r.personalAccount / 139 * 100) / 100, 2)
+  })
+
+  it('计发基数不同的两城，同输入必须得出不同的基础养老金', () => {
+    const gz = new BenefitEngine(base.benefit, { ...base.retirement, benefitBaseMonthly: 9493 })
+    const sz = new BenefitEngine(base.benefit, { ...base.retirement, benefitBaseMonthly: 11293 })
+    const a = gz.projectRetirement(25, 60, 1200, 15, 0.05, 0.6)
+    const b = sz.projectRetirement(25, 60, 1200, 15, 0.05, 0.6)
+    expect(b.basePension).toBeGreaterThan(a.basePension)
+  })
+
+  it('缴费指数低于 0.6 时按 0.6 计（广东规则），不得算出更低的基础养老金', () => {
+    const eng = new BenefitEngine(base.benefit, base.retirement)
+    const low = eng.projectRetirement(25, 60, 1200, 15, 0.05, 0.3)
+    const floor = eng.projectRetirement(25, 60, 1200, 15, 0.05, 0.6)
+    expect(low.basePension).toBe(floor.basePension)
+  })
+
+  it('深圳计发基数单列为 11293，不得沿用全省 9493', () => {
+    const sz = JSON.parse(readFileSync('public/rules/shenzhen.json', 'utf8')) as CityRule
+    expect(sz.retirement.benefitBaseMonthly).toBe(11293)
+  })
+
+  it('广州与东莞沿用全省计发基数 9493', () => {
+    for (const city of ['guangzhou', 'dongguan']) {
+      const r = JSON.parse(readFileSync(`public/rules/${city}.json`, 'utf8')) as CityRule
+      expect(r.retirement.benefitBaseMonthly, city).toBe(9493)
+    }
+  })
+})

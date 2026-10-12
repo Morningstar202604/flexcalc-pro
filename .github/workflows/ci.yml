@@ -42,6 +42,28 @@ jobs:
             }
             const allOfficial = srcs.every(([,s])=>s.confidence==='official');
             if (r.verified && !allOfficial) throw new Error(f+' verified=true 但存在非 official 来源');
+
+            // 医保分档是外部数据，分档费率必须能回溯到 medical 档的官方来源
+            const tiers = r.benefit.medicalTiers;
+            if (tiers) {
+              if (!r.sources.medical) throw new Error(f+' 有 medicalTiers 但缺 medical 来源');
+              if (r.sources.medical.confidence !== 'official')
+                throw new Error(f+' medicalTiers 存在但 medical 来源非 official');
+              const ids = tiers.map(t=>t.id);
+              if (new Set(ids).size !== ids.length) throw new Error(f+' medicalTiers 存在重复 id');
+              const rates = tiers.map(t=>t.rate);
+              if (new Set(rates).size !== rates.length) throw new Error(f+' medicalTiers 存在重复费率');
+              for (const t of tiers) {
+                if (!(t.rate > 0 && t.rate < 0.2)) throw new Error(f+' 档次 '+t.id+' 费率越界: '+t.rate);
+                if (!t.note) throw new Error(f+' 档次 '+t.id+' 缺口径说明');
+              }
+              if (!rates.includes(r.benefit.medical.rate))
+                throw new Error(f+' 默认档费率 '+r.benefit.medical.rate+' 不在任何 medicalTiers 中');
+            }
+
+            // 退休计发基数是外部数据，不得在代码或数据里被静默改成写死值
+            if (!(r.retirement.benefitBaseMonthly > 0)) throw new Error(f+' 计发基数非法');
+            if (!r.sources.retirement) throw new Error(f+' 缺 retirement 来源');
           }
           console.log('rule provenance OK');
         "

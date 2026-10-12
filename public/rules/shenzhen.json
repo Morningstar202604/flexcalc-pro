@@ -81,13 +81,13 @@
   },
   "benefit": {
     "pension": {
-      "baseMin": 5510,
+      "baseMin": 5521,
       "baseMax": 27603,
       "rate": 0.2
     },
     "medical": {
-      "baseMin": 6234,
-      "baseMax": 31170,
+      "baseMin": 6727,
+      "baseMax": 33633,
       "rate": 0.08
     }
   },
@@ -96,7 +96,7 @@
     "nonFullTimeHourly": 25.4
   },
   "retirement": {
-    "benefitBaseMonthly": 9493,
+    "benefitBaseMonthly": 11293,
     "paymentIndex": 0.6,
     "assumedAnnualReturn": 0.03
   },
@@ -105,45 +105,57 @@
       "title": "关于公布2026年职工基本养老保险缴费基数上下限有关问题的通知",
       "docNo": "粤人社发〔2026〕24号",
       "url": "https://guangdong.chinatax.gov.cn/gdsw/ssfggds/2026-10/08/content_b40dcb7bf605411fbb12e0f81281dc6b.shtml",
-      "effectiveFrom": "下限 2026-01-01（全省统一，深圳原有单列下限口径被取代）；上限 2026-07-01",
-      "retrievedAt": "2026-10-11",
+      "effectiveFrom": "下限 2026-01-01 起全省统一为 5510 元（深圳原有单列口径被取代）；自 2026-07-01 起下限调整为 5521 元、上限调整为 27603 元",
+      "retrievedAt": "2026-10-12",
       "confidence": "official",
-      "note": "深圳此前按本市口径单列缴费基数下限（原文件中为2360元），粤人社发〔2026〕24号后全省统一为5510元。此处数值变动大，用户侧需二次确认"
+      "note": "本文件采用当前生效值 5521–27603。深圳此前按本市口径单列缴费基数下限，2026年起并入全省统一标准，跨口径历史对比数据不可直接混用；因调整产生的补差在本社保年度内缴纳视为正常缴费"
     },
     "pensionRate": {
       "title": "广东省灵活就业人员参加企业职工基本养老保险办法",
       "docNo": "粤人社规〔2026〕14号",
       "url": "https://hrss.sz.gov.cn/szsi/sbjxxgk/zcfggfxwj/zcfg/sbzs/content/post_12855003.html",
       "effectiveFrom": "2026-05-01",
-      "retrievedAt": "2026-10-11",
+      "retrievedAt": "2026-10-12",
       "confidence": "official"
     },
     "medical": {
-      "title": "深圳市灵活就业人员职工基本医疗保险缴费标准",
-      "retrievedAt": "2026-10-11",
-      "confidence": "unverified",
-      "note": "深圳医保分一档/二档且基数口径与广州不同，本文件暂抄广州数值占位，未经深圳市医保局原文核对，不可对外引用"
+      "title": "深圳市医疗保障局关于2026年度职工基本医疗保险和生育保险缴费基数与费率的提示",
+      "issuedBy": "深圳市医疗保障局",
+      "url": "https://hsa.sz.gov.cn/xwzx/tzgg/content/post_12567884.html",
+      "effectiveFrom": "2026-01-01 至 2026-12-31",
+      "retrievedAt": "2026-10-12",
+      "confidence": "official",
+      "note": "原文：缴费基数下限 6727 元、上限 33633 元；自 2026-01-01 起灵活就业人员缴费费率由 7% 恢复为 8%。依据《深圳市医疗保障办法》（深圳市人民政府令第358号）第九条，灵活就业人员参加职工基本医疗保险一档，以本人申报的月工资收入为基数，由本人以缴费基数的8%按月缴纳"
     },
     "tax": {
       "title": "中华人民共和国个人所得税法实施条例 + 个人所得税预扣率表二（劳务报酬）",
       "docNo": "国务院令第707号；国家税务总局公告2018年第61号",
       "effectiveFrom": "2019-01-01",
-      "retrievedAt": "2026-10-11",
+      "retrievedAt": "2026-10-12",
       "confidence": "official"
     },
     "minimumWage": {
       "title": "广东省人民政府关于调整我省最低工资标准的通知",
       "url": "https://hrss.sz.gov.cn/gkmlpt/content/12/12954/post_12954870.html",
       "effectiveFrom": "2026-09-01",
-      "retrievedAt": "2026-10-11",
+      "retrievedAt": "2026-10-12",
       "confidence": "official",
-      "note": "深圳2026-09-01起全日制2520→2700元/月，非全日制小时最低工资25.4元/小时"
+      "note": "深圳2026-09-01起全日制2700元/月，非全日制小时最低工资25.4元/小时"
     },
     "income": {
       "title": "平台接单计价规则",
-      "retrievedAt": "2026-10-11",
+      "retrievedAt": "2026-10-12",
       "confidence": "unverified",
       "note": "无公开权威来源，占位假设，需用户以本人APP实际计价替换"
+    },
+    "retirement": {
+      "title": "深圳市企业职工基本养老保险基本养老金计发基数",
+      "issuedBy": "深圳市人力资源和社会保障局",
+      "url": "https://www.sz.gov.cn/hdjl/ywzsk/rsj/shbz/content/post_12494386.html",
+      "effectiveFrom": "2025-01-01 至 2025-12-31 为 11293 元/月；2026 年办理退休人员沿用该标准",
+      "retrievedAt": "2026-10-12",
+      "confidence": "derived",
+      "note": "深圳企业职工养老保险独立核算，计发基数不与广东省内其他地市共用（广州、东莞等用 9493 元）。11293 元见于深圳市人社局公开答复与多家一致报道；2026 年正式基数尚未见规范性文件发布，当前按沿用上年标准处理，待正式文件公布后需回溯更新"
     }
   }
 }

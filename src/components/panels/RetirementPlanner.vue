@@ -4,7 +4,9 @@
       <p class="desc">
         以当前年龄 {{ store.personal.currentAge }} 岁起，测算不同缴费档次下的累计养老金。
         职工养老金 = 基础养老金 + 个人账户养老金。灵活就业者需自缴全部（含统筹部分）。
-        年龄可在左侧参数栏「税务与社保」中调整。
+        年龄可在左侧参数栏「税务与社保」中调整。计发基数取本城口径
+        （<b>{{ (store.rule?.retirement.benefitBaseMonthly ?? 0).toLocaleString() }}</b> 元/月），账户收益率
+        {{ assumedReturnPct }}% 为假设值，实际由人社部门核算。
       </p>
     </n-card>
 
@@ -12,12 +14,12 @@
       <div class="stat">
         <span class="stat-label">60岁预估月养老金</span>
         <span class="stat-value">¥{{ retireResult.totalPension.toLocaleString() }}</span>
-        <span class="stat-foot">基础 + 个人账户</span>
+        <span class="stat-foot">基础 ¥{{ Math.round(retireResult.basePension).toLocaleString() }} + 个账 ¥{{ Math.round(retireResult.personalPension).toLocaleString() }}</span>
       </div>
       <div class="stat">
         <span class="stat-label">个人账户累计</span>
         <span class="stat-value">¥{{ retireResult.personalAccount.toLocaleString() }}</span>
-        <span class="stat-foot">5%年化复利</span>
+        <span class="stat-foot">{{ assumedReturnPct }}% 年化假设收益率</span>
       </div>
       <div class="stat">
         <span class="stat-label">需缴年限</span>
@@ -83,7 +85,8 @@ import { axisX, axisY, GRID, legend, C } from '../../utils/chart'
 import ChartBox from '../ChartBox.vue'
 
 const store = useMainStore()
-const engine = computed(() => store.rule ? new BenefitEngine(store.rule.benefit) : null)
+const engine = computed(() => store.rule ? new BenefitEngine(store.rule.benefit, store.rule.retirement) : null)
+const assumedReturnPct = computed(() => Math.round((store.rule?.retirement.assumedAnnualReturn ?? 0.05) * 1000) / 10)
 
 const monthlyContribution = computed(() => {
   const base = store.rule?.benefit.pension.baseMin || 5000
@@ -91,10 +94,10 @@ const monthlyContribution = computed(() => {
 })
 
 const retireResult = computed(() => {
-  if (!engine.value) return { totalPension: 0, personalAccount: 0, months: 0 }
+  if (!engine.value) return { totalPension: 0, personalAccount: 0, basePension: 0, personalPension: 0, months: 0 }
   return engine.value.projectRetirement(
     store.personal.currentAge, store.personal.expectedRetireAge,
-    monthlyContribution.value, 15, 0.05
+    monthlyContribution.value, 15, store.rule?.retirement.assumedAnnualReturn ?? 0.05
   )
 })
 
@@ -116,8 +119,9 @@ const tierOption = computed<EChartsOption>(() => {
     { name: '150%档', base: (baseMin + baseMax) * 0.75 },
     { name: '200%档', base: baseMax * 0.8 },
   ]
+  const annualReturn = store.rule?.retirement.assumedAnnualReturn ?? 0.05
   const contribData = tiers.map(t => Math.round(t.base * 0.20))
-  const pensionData = tiers.map(t => engine.value!.projectRetirement(store.personal.currentAge, store.personal.expectedRetireAge, Math.round(t.base * 0.20), store.personal.expectedRetireAge - store.personal.currentAge, 0.05).totalPension)
+  const pensionData = tiers.map(t => engine.value!.projectRetirement(store.personal.currentAge, store.personal.expectedRetireAge, Math.round(t.base * 0.20), store.personal.expectedRetireAge - store.personal.currentAge, annualReturn).totalPension)
   return {
     tooltip: { trigger: 'axis' },
     legend: legend(['月养老金', '月缴费额']),
@@ -134,13 +138,14 @@ const tierOption = computed<EChartsOption>(() => {
 const growthOption = computed<EChartsOption>(() => {
   if (!engine.value) return {}
   const months = (store.personal.expectedRetireAge - store.personal.currentAge) * 12
+  const annualReturn = store.rule?.retirement.assumedAnnualReturn ?? 0.05
   const labels: string[] = []
   const data: number[] = []
   let balance = 0
   const m = monthlyContribution.value
   for (let i = 0; i <= months; i += 12) {
     labels.push((store.personal.currentAge + i / 12) + '岁')
-    balance = balance * Math.pow(1.05, 12) + m * 12
+    balance = balance * Math.pow(1 + annualReturn, 12) + m * 12
     data.push(Math.round(balance))
   }
   return {
@@ -159,8 +164,9 @@ const growthOption = computed<EChartsOption>(() => {
 
 const compareYears = computed(() => {
   if (!engine.value) return []
+  const annualReturn = store.rule?.retirement.assumedAnnualReturn ?? 0.05
   return [15, 20, 25, 30].map(years => {
-    const r = engine.value!.projectRetirement(store.personal.currentAge, store.personal.currentAge + years, monthlyContribution.value, years, 0.05)
+    const r = engine.value!.projectRetirement(store.personal.currentAge, store.personal.currentAge + years, monthlyContribution.value, years, annualReturn)
     return { years, pension: r.totalPension, account: r.personalAccount, yearsToBreakEven: Math.round((r.personalAccount / (r.totalPension || 1)) / 12) }
   })
 })

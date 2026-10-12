@@ -81,15 +81,35 @@
   },
   "benefit": {
     "pension": {
-      "baseMin": 5510,
+      "baseMin": 5521,
       "baseMax": 27603,
       "rate": 0.2
     },
     "medical": {
-      "baseMin": 5761,
-      "baseMax": 28803,
-      "rate": 0.07
-    }
+      "baseMin": 4775,
+      "baseMax": 27549,
+      "rate": 0.0365
+    },
+    "medicalTiers": [
+      {
+        "id": "single_pool",
+        "name": "单建统筹（无个人账户）",
+        "rate": 0.0365,
+        "note": "2026-07-01 起按 东府规〔2026〕5号 由 3.5% 调整为 3.65%（含生育保险）。单位 3.15% + 个人 0.5% 均由灵活就业者本人承担。这是参保成本最低的档次，只享受统筹待遇，个人账户无积累。"
+      },
+      {
+        "id": "combined_no_account",
+        "name": "统账结合（无个人账户）",
+        "rate": 0.043,
+        "note": "2026 上半年费率：单位 3.8% + 个人 0.5%。统合建统筹基金但不设个人账户，缴费高于单建统筹。"
+      },
+      {
+        "id": "combined_account",
+        "name": "统账结合（有个账）",
+        "rate": 0.063,
+        "note": "2026 上半年费率：单位 4.3% + 个人 2%。建立个人账户、缴费最高，退休医保待遇相应更高。可另选参加大额补助（0.5%，2026 上半年费率）。"
+      }
+    ]
   },
   "minimumWage": {
     "monthly": 2300,
@@ -105,24 +125,37 @@
       "title": "关于公布2026年职工基本养老保险缴费基数上下限有关问题的通知",
       "docNo": "粤人社发〔2026〕24号",
       "url": "https://guangdong.chinatax.gov.cn/gdsw/ssfggds/2026-10/08/content_b40dcb7bf605411fbb12e0f81281dc6b.shtml",
-      "effectiveFrom": "下限 2026-01-01（全省统一，不再分片区）；上限 2026-07-01",
-      "retrievedAt": "2026-10-11",
+      "effectiveFrom": "下限 2026-01-01 起全省统一为 5510 元（不再分片区）；自 2026-07-01 起下限调整为 5521 元、上限调整为 27603 元",
+      "retrievedAt": "2026-10-12",
       "confidence": "official",
-      "note": "东莞原按粤西片区口径执行较低下限，2026年起全省统一为5510元"
+      "note": "本文件采用当前生效值 5521–27603。东莞原按片区口径执行较低下限，2026年起并入全省统一标准"
     },
     "pensionRate": {
       "title": "广东省灵活就业人员参加企业职工基本养老保险办法",
       "docNo": "粤人社规〔2026〕14号",
       "url": "https://hrss.sz.gov.cn/szsi/sbjxxgk/zcfggfxwj/zcfg/sbzs/content/post_12855003.html",
       "effectiveFrom": "2026-05-01",
-      "retrievedAt": "2026-10-11",
+      "retrievedAt": "2026-10-12",
       "confidence": "official"
     },
     "medical": {
-      "title": "东莞市灵活就业人员职工基本医疗保险缴费标准",
-      "retrievedAt": "2026-10-11",
-      "confidence": "unverified",
-      "note": "尚未回溯到东莞市医保局2026年度原文，baseMin/baseMax/rate 为估算占位值，不可对外引用；需按东莞全口径月平均工资的60%-300%重新核定"
+      "title": "2026年度医疗保险缴费基数和费率表（上半年）",
+      "issuedBy": "东莞市医疗保障局",
+      "url": "https://www.dg.gov.cn/zwgk/zfxxgkml/sylbzj/content/post_4481570.html",
+      "effectiveFrom": "2026-01-01 起",
+      "retrievedAt": "2026-10-12",
+      "confidence": "official",
+      "note": "原文：职工医保缴费费基下限 4775 元、上限 27549 元。灵活就业人员分档：单建统筹 单位2.3%+个人0.5%；统账结合(有个账) 单位4.3%+个人2%；统账结合(无个账) 单位3.8%+个人0.5%；大额补助 0.5%。表下注明「灵活就业人员参加社会基本医疗保险（含大额补助）的，缴费费率的单位和个人部分均由个人承担」"
+    },
+    "medicalTierRate": {
+      "title": "东莞市人民政府关于调整和明确我市基本医疗保险及大病保险政策有关问题的通知",
+      "docNo": "东府规〔2026〕5号",
+      "issuedBy": "东莞市人民政府",
+      "url": "https://www.dg.gov.cn/zwgk/zfxxgkml/szfbgs/zcwj/gfxwj/content/post_4554768.html",
+      "effectiveFrom": "2026-07-01 起实施，有效期至 2028-12-31",
+      "retrievedAt": "2026-10-12",
+      "confidence": "official",
+      "note": "原文第一条：单建统筹职工基本医疗保险缴费费率（含生育保险缴费费率）由 3.5% 调整为 3.65%，其中单位（含生育）由 3.0% 调整为 3.15%，个人维持 0.5% 不变。本产品默认档取 3.65%；另两档采用官方费率表 2026 上半年口径，后续如有调整需按本通知及后续文件更新"
     },
     "tax": {
       "title": "中华人民共和国个人所得税法实施条例 + 个人所得税预扣率表二（劳务报酬）",
@@ -135,22 +168,23 @@
       "title": "广东省人民政府关于调整我省最低工资标准的通知",
       "url": "https://www.sz.gov.cn/cn/xxgk/zfxxgj/zwdt/content/post_12936470.html",
       "effectiveFrom": "2026-09-01",
-      "retrievedAt": "2026-10-11",
+      "retrievedAt": "2026-10-12",
       "confidence": "derived",
-      "note": "东莞执行二类标准2300元/月（官方转发稿可查）；非全日制小时最低工资18.9元未能回溯到原文表格数值，标记待核实"
+      "note": "东莞执行二类标准2300元/月；非全日制小时最低工资18.9元未能回溯到原文表格数值，标记待核实"
     },
     "income": {
       "title": "平台接单计价规则",
-      "retrievedAt": "2026-10-11",
+      "retrievedAt": "2026-10-12",
       "confidence": "unverified",
       "note": "无公开权威来源，占位假设，需用户以本人APP实际计价替换"
     },
     "retirement": {
       "title": "养老金计发公式（同广州）",
       "docNo": "国发〔2005〕38号",
-      "retrievedAt": "2026-10-11",
+      "effectiveFrom": "2025-01-01 至 2026-12-31 全省统一使用 9493 元/月",
+      "retrievedAt": "2026-10-12",
       "confidence": "derived",
-      "note": "计发基数9493元/月为广东全省口径，需回溯人社厅原文；60岁计发月数139为法定值；收益率3%为自设假设"
+      "note": "东莞属广东省（不含深圳）统一口径，计发基数 9493 元/月，深圳单列 11293 元不得套用。该数值见于省市人社部门公开答复与多家一致报道，尚未回溯到规范性文件原文文号；60岁计发月数139为法定值；收益率为自设假设"
     }
   }
 }

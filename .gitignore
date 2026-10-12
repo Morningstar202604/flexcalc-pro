@@ -10,3 +10,4 @@ dist/
 .meituan-catpaw/
 coverage/
 *.tsbuildinfo
+.aqg/

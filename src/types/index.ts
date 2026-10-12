@@ -26,8 +26,15 @@ export interface CityRule {
   benefit: BenefitRule
   minimumWage: { monthly: number; nonFullTimeHourly: number }
   /** 退休测算参数：计发基数与假想收益率均为外部输入，禁止在代码里写死 */
-  retirement: { benefitBaseMonthly: number; paymentIndex: number; assumedAnnualReturn: number }
+  retirement: RetirementRule
   sources: Record<string, SourceRef>
+}
+
+/** 养老金计发参数。benefitBaseMonthly 为本城计发基数，深圳单列、其余地市用全省口径 */
+export interface RetirementRule {
+  benefitBaseMonthly: number
+  paymentIndex: number
+  assumedAnnualReturn: number
 }
 
 export interface IncomeRule {
@@ -61,8 +68,18 @@ export interface TaxBracket {
 export interface BenefitRule {
   /** 灵活就业人员自行缴纳全部费率，不存在单位分担 */
   pension: { baseMin: number; baseMax: number; rate: number }
-  /** 以本人申报收入为基数，夹在上下限之间（穗医保规字〔2022〕1号） */
+  /** 以本人申报收入为基数，夹在上下限之间。rate 为默认档费率 */
   medical: { baseMin: number; baseMax: number; rate: number }
+  /** 部分城市（如东莞）医保分档收费，无单一法定费率；缺省时按 medical.rate 计算 */
+  medicalTiers?: MedicalTier[]
+}
+
+/** 医保档次：东莞等地对灵活就业人按档设费率，用户可自行选择实际参保档次 */
+export interface MedicalTier {
+  id: string
+  name: string
+  rate: number
+  note: string
 }
 
 // ===== 用户输入模型 =====
@@ -95,6 +112,8 @@ export interface PersonalParams {
   expectedRetireAge: number
   hasSocialInsurance: boolean
   specialDeductionMonth: number
+  /** 医保档次 id，对应 rule.benefit.medicalTiers；为空表示用默认档 */
+  medicalTierId?: string
 }
 
 // ===== 计算结果模型 =====

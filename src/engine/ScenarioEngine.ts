@@ -13,7 +13,7 @@ export class ScenarioEngine {
 
     const monthlyGross = income.grossIncome
     const tax = new TaxEngine(this.rule.tax).calcLabor(new Array(12).fill(monthlyGross), personal.specialDeductionMonth)
-    const benefit = new BenefitEngine(this.rule.benefit).calcMonthly(monthlyGross, personal.hasSocialInsurance)
+    const benefit = new BenefitEngine(this.rule.benefit).calcMonthly(monthlyGross, personal.hasSocialInsurance, personal.medicalTierId)
 
     const monthlyTax = tax.annualTax / 12
     const insuranceCost = benefit.totalMonthly

@@ -97,6 +97,11 @@ export const useMainStore = defineStore('main', () => {
       const data = await res.json() as CityRule
       if (seq !== loadSeq) return
       rule.value = data
+      // 医保档次是各城规则文件自己的条目，切换城市后旧档次 id 在新城中不存在
+      const tierId = personal.value.medicalTierId
+      if (tierId && !data.benefit.medicalTiers?.some(t => t.id === tierId)) {
+        personal.value.medicalTierId = undefined
+      }
     } catch (err) {
       if (seq !== loadSeq) return
       rule.value = null

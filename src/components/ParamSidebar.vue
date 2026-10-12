@@ -139,6 +139,17 @@
         <n-switch v-model:value="store.personal.hasSocialInsurance" size="small" />
       </div>
 
+      <div v-if="medicalTiers.length > 0" class="ps-item">
+        <div class="ps-label">医保档次</div>
+        <n-select
+          :value="store.personal.medicalTierId || defaultTierId"
+          :options="medicalTierOptions"
+          size="small"
+          @update:value="(v: string) => store.personal.medicalTierId = v === defaultTierId ? undefined : v"
+        />
+        <div class="ps-note">{{ activeTierNote }}</div>
+      </div>
+
       <div class="ps-item">
         <div class="ps-label">专项附加扣除/月 <b>¥{{ store.personal.specialDeductionMonth }}</b></div>
         <n-slider v-model:value="store.personal.specialDeductionMonth" :min="0" :max="5000" :step="500" />
@@ -155,11 +166,26 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { NSlider, NRadioGroup, NRadioButton, NSwitch, NDivider, NTag, NSelect, NButton } from 'naive-ui'
 import { useMainStore, CITIES } from '../stores/main'
 
 const store = useMainStore()
 const cityOptions = CITIES
+
+/** 东莞等地医保分档收费，无单一法定费率，必须让用户按实际参保档次选 */
+const medicalTiers = computed(() => store.rule?.benefit.medicalTiers ?? [])
+/** 未选择时按规则文件的默认档（benefit.medical.rate）测算 */
+const defaultTierId = computed(() => medicalTiers.value.find(t => t.rate === store.rule?.benefit.medical.rate)?.id ?? '')
+const medicalTierOptions = computed(() =>
+  medicalTiers.value.map(t => ({
+    value: t.id,
+    label: `${t.name}（${(t.rate * 100).toFixed(2)}%）`,
+  }))
+)
+const activeTierNote = computed(() =>
+  medicalTiers.value.find(t => t.id === (store.personal.medicalTierId || defaultTierId.value))?.note ?? ''
+)
 </script>
 
 <style scoped>

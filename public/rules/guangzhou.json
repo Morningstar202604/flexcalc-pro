@@ -2,7 +2,7 @@
   "city": "guangzhou",
   "cityName": "广州",
   "year": 2026,
-  "lastCheckedAt": "2026-10-11",
+  "lastCheckedAt": "2026-10-12",
   "verified": false,
   "occupation": "delivery",
   "occupationName": "外卖骑手",
@@ -32,7 +32,7 @@
     }
   },
   "benefit": {
-    "pension": { "baseMin": 5510, "baseMax": 27603, "rate": 0.2 },
+    "pension": { "baseMin": 5521, "baseMax": 27603, "rate": 0.2 },
     "medical": { "baseMin": 6234, "baseMax": 31170, "rate": 0.08 }
   },
   "minimumWage": { "monthly": 2680, "nonFullTimeHourly": 25.4 },
@@ -43,9 +43,10 @@
       "docNo": "粤人社发〔2026〕24号",
       "issuedBy": "广东省人力资源和社会保障厅、广东省财政厅、国家税务总局广东省税务局",
       "url": "https://guangdong.chinatax.gov.cn/gdsw/ssfggds/2026-10/08/content_b40dcb7bf605411fbb12e0f81281dc6b.shtml",
-      "effectiveFrom": "下限 2026-01-01（全省统一，不再分片区）；上限 2026-07-01",
-      "retrievedAt": "2026-10-11",
-      "confidence": "official"
+      "effectiveFrom": "下限 2026-01-01 起统一为 5510 元（不再分片区）；自 2026-07-01 起下限调整为 5521 元、上限调整为 27603 元",
+      "retrievedAt": "2026-10-12",
+      "confidence": "official",
+      "note": "原文第二条：自2026年7月1日起，全省企业职工基本养老保险缴费基数上限调整为27603元，缴费基数下限调整为5521元。本文件采用当前生效值 5521–27603；5510 为 2026 年 1–6 月口径，已过期。因该调整产生的补差在本社保年度内缴纳的视为正常缴费"
     },
     "pensionRate": {
       "title": "广东省灵活就业人员参加企业职工基本养老保险办法",
@@ -53,35 +54,35 @@
       "issuedBy": "广东省人力资源和社会保障厅、广东省财政厅、国家税务总局广东省税务局",
       "url": "https://hrss.sz.gov.cn/szsi/sbjxxgk/zcfggfxwj/zcfg/sbzs/content/post_12855003.html",
       "effectiveFrom": "2026-05-01",
-      "retrievedAt": "2026-10-11",
+      "retrievedAt": "2026-10-12",
       "confidence": "official",
       "note": "第七条：缴费比例20%，其中12%记入统筹基金、8%记入个人账户；第六条：基数在参保地企业职保上下限范围内自选"
     },
     "medical": {
-      "title": "广州市职工医疗保险和生育保险筹资标准的通知",
-      "docNo": "穗医保规字〔2022〕1号",
+      "title": "广州市医疗保障局 广州市财政局 广州市人力资源和社会保障局关于简易修改广州市职工医疗保险和生育保险筹资标准的通知",
+      "docNo": "穗医保规字〔2026〕4号",
       "issuedBy": "广州市医疗保障局、广州市财政局、广州市人力资源和社会保障局",
-      "url": "https://www.gz.gov.cn/gfxwj/sbmgfxwj/gzsylbzj/content/post_8689834.html",
-      "effectiveFrom": "2023-01-01",
-      "retrievedAt": "2026-10-11",
+      "url": "https://www.gz.gov.cn/gzybj/gkmlpt/content/11/11029/post_11029015.html",
+      "effectiveFrom": "2027-01-01 起施行（2026 年内沿用 穗医保规字〔2022〕1号，实体内容一致）",
+      "retrievedAt": "2026-10-12",
       "confidence": "official",
-      "note": "灵活就业人员按缴费基数的8%缴纳；基数为本人申报工资收入，上下限为上上年度全口径月平均工资的60%-300%"
+      "note": "原文二(二)：灵活就业人员应当按其缴费基数的8%按月足额缴纳职工基本医疗保险费；一(一)：灵活就业人员以个人申报的工资收入为缴费基数，上限为本市上上年度全口径城镇单位就业人员月平均工资的300%，下限为60%。原 [2022]1号 已被本文重新发布并作不涉及实体内容的简易修改"
     },
     "medicalBase": {
       "title": "2026年度职工基本医疗保险（含生育保险）缴费基数上下限",
-      "issuedBy": "广州市税务局（年度公布）",
-      "url": "https://cbgc.scol.com.cn/news/7196988",
+      "issuedBy": "国家税务总局广州市税务局（年度公布）",
+      "url": "https://guangdong.chinatax.gov.cn/gdsw/gzsw_nsfw_szsbfywblzy_blzy/",
       "effectiveFrom": "2026-01-01",
-      "retrievedAt": "2026-10-11",
+      "retrievedAt": "2026-10-12",
       "confidence": "derived",
-      "note": "上限31170元/下限6234元由媒体报道与代办平台汇总表交叉核对，尚未回溯到税务官网原文页面，对外引用前需补官方链接"
+      "note": "上限 31170 元/下限 6234 元由广州市税务局公布的年度标准经南方日报、南方+ 等一致转述交叉核对得出，对应上上年度全口径月平均工资的 300%/60%（反算月平工资约 10390 元）。尚未回溯到税务官网逐年发布的原始公告页面，对外引用前需补官方链接；本产品仅用于本地测算展示"
     },
     "tax": {
       "title": "中华人民共和国个人所得税法实施条例 + 个人所得税预扣率表二（劳务报酬）",
       "docNo": "国务院令第707号；国家税务总局公告2018年第61号",
       "url": "https://fgk.chinatax.gov.cn/",
       "effectiveFrom": "2019-01-01",
-      "retrievedAt": "2026-10-11",
+      "retrievedAt": "2026-10-12",
       "confidence": "official",
       "note": "劳务报酬所得预扣预缴：每次收入减除20%费用，减除费用按5000元/月累计，预扣率3%-45%"
     },
@@ -90,14 +91,14 @@
       "docNo": "国务院令第810号",
       "url": "https://www.mee.gov.cn/zcwj/gwywj/202506/t20250624_1121806.shtml",
       "effectiveFrom": "2025-10-01 首次报送",
-      "retrievedAt": "2026-10-11",
+      "retrievedAt": "2026-10-12",
       "confidence": "official",
       "note": "关键限制：官方解读明确在互联网平台内从事配送、运输、家政等便民劳务活动的从业人员，其收入信息免予报送。骑手不属该规定的报送/代扣范围，本产品按劳务报酬累计预扣计算属自行申报口径"
     },
     "income": {
       "title": "平台接单计价规则（起步价/距离费率/时段与天气补贴/冲单奖）",
       "issuedBy": "无公开权威来源",
-      "retrievedAt": "2026-10-11",
+      "retrievedAt": "2026-10-12",
       "confidence": "unverified",
       "note": "平台单价与计价系数属商业规则，各平台仅在其规则中心对本平台骑手公示，无跨平台权威数据源。当前数值为占位假设，不能对外引用；用户应替换为本人APP内实际计价与流水"
     },
@@ -105,17 +106,18 @@
       "title": "广东省人民政府关于调整我省最低工资标准的通知",
       "url": "https://www.sz.gov.cn/cn/xxgk/zfxxgj/zwdt/content/post_12936470.html",
       "effectiveFrom": "2026-09-01",
-      "retrievedAt": "2026-10-11",
+      "retrievedAt": "2026-10-12",
       "confidence": "official",
       "note": "广州、深圳执行一类标准：广州2680元/月，深圳2700元/月，对应非全日制小时最低工资均为25.4元/小时"
     },
     "retirement": {
-      "title": "养老金计发公式：基础养老金=计发基数×(1+平均缴费指数)/2×缴费年限×1%；个人账户养老金=储存额/计发月数",
+      "title": "养老金计发公式：基础养老金=计发基数×(1+平均缴费指数)÷2×缴费年限×1%；个人账户养老金=储存额/计发月数",
       "docNo": "国发〔2005〕38号",
       "url": "https://www.gdlgb.gov.cn/xwdt/slzx6/content/post_101186.html",
-      "retrievedAt": "2026-10-11",
+      "effectiveFrom": "2025-01-01 至 2026-12-31 全省统一使用 9493 元/月",
+      "retrievedAt": "2026-10-12",
       "confidence": "derived",
-      "note": "计发基数9493元/月取自广东省调整养老金计发基数的报道汇总，需回溯人社厅原文；60岁退休计发月数139为法定值；投资收益率3%为自设假设，必须向用户标注"
+      "note": "计发基数 9493 元/月为广东省（不含深圳）统一口径，深圳单列 11293 元；该数值见于省市人社部门公开答复与多家一致报道，尚未回溯到发布本基数的规范性文件原文文号，对外引用前需补原文。60岁退休计发月数139为法定值；投资收益率3%为自设假设，必须向用户标注"
     }
   }
 }
