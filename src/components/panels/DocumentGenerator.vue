@@ -7,11 +7,12 @@
         生成后可复制或下载为文本文件，打印签字后提交前请先经 12348 或工会法律援助审核。
       </p>
       <n-alert v-if="!comp" type="info" :show-icon="true" style="margin-top: 8px">
-        尚未读取到补偿计算结果，当前文书中的金额与事实项为空白待填格式。
+        尚未读取到补偿计算结果，当前文书中的金额与事实项为空白待填格式。请先在「补偿计算」面板填写你自己的实际情况。
       </n-alert>
-      <n-alert v-else type="success" :show-icon="true" style="margin-top: 8px">
-        已带入「{{ comp.scene }}」测算结果：可直接主张 ¥{{ yuan(comp.total) }}
+      <n-alert v-else type="warning" :show-icon="true" style="margin-top: 8px">
+        已带入你在「补偿计算」面板填写的结果：可直接主张 ¥{{ yuan(comp.total) }}
         <template v-if="comp.conditionalTotal > 0">＋条件项 ¥{{ yuan(comp.conditionalTotal) }}（需前置条件成立，提交前请确认）</template>
+        <div style="margin-top:4px">这些数字来自你填入的参数，不是平台认定的金额，提交前请逐项核对。</div>
       </n-alert>
     </n-card>
 

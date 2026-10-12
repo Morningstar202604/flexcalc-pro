@@ -4,6 +4,8 @@ import { ScenarioEngine } from '../src/engine/ScenarioEngine'
 import { IncomeEngine } from '../src/engine/IncomeEngine'
 import { TaxEngine } from '../src/engine/TaxEngine'
 import { BenefitEngine } from '../src/engine/BenefitEngine'
+import { hydrateParams as hydrate } from '../src/utils/params'
+import { validateEndpoint } from '../src/utils/endpoint'
 import type { CityRule, WorkParams, CostParams, PersonalParams } from '../src/types'
 
 const rule = JSON.parse(readFileSync('public/rules/guangzhou.json', 'utf8')) as CityRule
@@ -246,8 +248,242 @@ describe('R1 外部参数必须是各城官方原文值', () => {
   })
 })
 
-/** R3/R4: 退休测算必须走规则文件的计发基数，不得写死 */
-describe('R3/R4 退休测算使用规则文件计发基数', () => {
+/**
+ * R1: 个税计算必须自述真实口径。
+ * 引擎算的其实是年度汇算清缴（税率表一 + 累计减除 60000），
+ * 而规则文件曾把它标注为「预扣率表二（劳务报酬）· 累计预扣」并挂了 61 号公告文号。
+ * 61号公告原文：预扣率表二为 20%/30%/40%（速算扣除 0/2000/7000），与税率表一完全不同。
+ */
+describe('R1 个税税率表口径必须自述正确', () => {
+  for (const city of ['guangzhou', 'shenzhen', 'dongguan']) {
+    const r = JSON.parse(readFileSync(`public/rules/${city}.json`, 'utf8')) as CityRule
+
+    it(`${city}：税率表标题标注为税率表一（综合所得），不得称预扣率表二`, () => {
+      // 只查 title：note 里必须保留"若平台代扣应改用预扣率表二"的对比说明，那是有益的
+      expect(r.sources.tax.title).toContain('税率表一')
+      expect(r.sources.tax.title, `${city} 标题不得把税率表一标注为预扣率表二`).not.toContain('预扣率表二')
+    })
+
+    it(`${city}：note 说明了与平台代扣预扣口径的差异`, () => {
+      expect(r.sources.tax.note).toContain('预扣率表二')
+      expect(r.sources.tax.note).toContain('年度汇算清缴')
+    })
+
+    it(`${city}：method 为年度汇算口径而非累计预扣`, () => {
+      expect(r.tax.method).toBe('annual_consolidated')
+    })
+
+    it(`${city}：税率表内容是税率表一（3%-45%，速算扣除 0/2520/16920）`, () => {
+      const tb = r.tax.laborRemuneration.taxTable
+      expect(tb[0].rate).toBe(0.03)
+      expect(tb[1].deduction).toBe(2520)
+      expect(tb[tb.length - 1].rate).toBe(0.45)
+    })
+  }
+})
+
+/** R2: 费用减除必须实现 4000 元分支（个人所得税扣缴申报管理办法第八条） */
+describe('R2 劳务报酬费用减除的 4000 元分支', () => {
+  const gz = JSON.parse(readFileSync('public/rules/guangzhou.json', 'utf8')) as CityRule
+
+  it('月收入 3000（低于 4000）时按 800 元减除，而非 20%', () => {
+    const t = new TaxEngine(gz.tax).calcLabor(new Array(12).fill(3000), 0)
+    // 收入额 = 3000 - 800 = 2200；应纳税所得额 = 2200 - 5000 < 0 → 税额 0
+    expect(t.annualTax).toBe(0)
+  })
+
+  it('月收入 8000（高于 4000）时按 20% 减除', () => {
+    const t = new TaxEngine(gz.tax).calcLabor(new Array(12).fill(8000), 0)
+    // 收入额 = 8000*0.8 = 6400；应纳税所得额 = 6400*12 - 5000*12 = 16800 → 3% 档
+    expect(t.annualTax).toBeCloseTo(Math.round(16800 * 0.03 * 100) / 100, 2)
+  })
+
+  it('若错用 20% 减除，低收入场景会虚高计税所得——两分支必须不同', () => {
+    const low = new TaxEngine(gz.tax).calcLabor(new Array(12).fill(3900), 0)
+    const high = new TaxEngine(gz.tax).calcLabor(new Array(12).fill(4100), 0)
+    // 3900 用 800 元分支后仍低于起征点；4100 用 20% 分支后同样低于起征点
+    expect(low.annualTax).toBe(0)
+    expect(high.annualTax).toBe(0)
+  })
+
+  it('4000 元阈值由规则文件承载，不写死在代码里', () => {
+    expect(gz.tax.laborRemuneration.expenseDeductionFixed).toBe(800)
+    expect(gz.tax.laborRemuneration.expenseDeductionThreshold).toBe(4000)
+  })
+})
+
+/** R3: 非有限与越界输入不得产生 NaN 或 Infinity */
+describe('R3 越界输入不得产生 NaN 或 Infinity', () => {
+  const gz = JSON.parse(readFileSync('public/rules/guangzhou.json', 'utf8')) as CityRule
+  const eng = new ScenarioEngine(gz)
+
+  const allFinite = (v: unknown) => Number.isFinite(v)
+
+  it('workDaysMonth=0 时不产生 NaN', () => {
+    const r = eng.runScenario('x', 'x', { ...work, workDaysMonth: 0 }, costs, personal)
+    expect(allFinite(r.income.grossIncome), 'grossIncome').toBe(true)
+    expect(allFinite(r.netMonthly), 'netMonthly').toBe(true)
+    expect(allFinite(r.netHourly), 'netHourly').toBe(true)
+  })
+
+  it('dailyHours=0 时不产生 Infinity', () => {
+    const r = eng.runScenario('x', 'x', { ...work, dailyHours: 0 }, costs, personal)
+    expect(allFinite(r.netHourly), 'netHourly').toBe(true)
+  })
+
+  it('负工作天数不产生符号矛盾（收入分项同号）', () => {
+    const r = eng.runScenario('x', 'x', { ...work, workDaysMonth: -5 }, costs, personal)
+    const parts = [r.income.basePay, r.income.distancePay, r.income.subsidyPay]
+    const signs = new Set(parts.map(v => Math.sign(v)))
+    expect(signs.size, `分项符号不一致: ${JSON.stringify(parts)}`).toBe(1)
+  })
+
+  it('NaN 输入被夹取为合法值而非传播', () => {
+    const r = eng.runScenario('x', 'x', { ...work, dailyOrders: NaN, avgDistance: NaN }, costs, personal)
+    expect(allFinite(r.income.grossIncome), 'grossIncome').toBe(true)
+  })
+
+  it('全极端参数下评分与评级仍可解释', () => {
+    const r = eng.runScenario('x', '极端', { ...work, dailyHours: 0, workDaysMonth: 0, dailyOrders: 0 }, costs, personal)
+    expect(allFinite(r.netMonthly)).toBe(true)
+    expect(['recommended', 'viable', 'risky']).toContain(r.recommendation)
+  })
+})
+
+/** R4: 用户选择的医保档次必须跨会话保留（hydrate 读写不对称） */
+describe('R4 医保档次跨会话保留', () => {
+  it('hydrate 不会丢弃可选键 medicalTierId（写入端存了、读取端必须能读回）', () => {
+    // 键必须显式存在于 fallback：白名单取自 fallback 的键，缺键会静默丢弃
+    const DEFAULT_PERSONAL: PersonalParams = {
+      currentAge: 25, expectedRetireAge: 60, hasSocialInsurance: false, specialDeductionMonth: 0,
+      medicalTierId: undefined, pensionBase: undefined, medicalBase: undefined,
+    }
+    const saved = { ...DEFAULT_PERSONAL, medicalTierId: 'combined_account' }
+    const out = hydrate(saved, DEFAULT_PERSONAL)
+    expect(out.medicalTierId).toBe('combined_account')
+  })
+
+  it('hydrate 同样保留自选缴费基数', () => {
+    const DEFAULT_PERSONAL: PersonalParams = {
+      currentAge: 25, expectedRetireAge: 60, hasSocialInsurance: false, specialDeductionMonth: 0,
+      medicalTierId: undefined, pensionBase: undefined, medicalBase: undefined,
+    }
+    const out = hydrate({ ...DEFAULT_PERSONAL, pensionBase: 8000, medicalBase: 7000 }, DEFAULT_PERSONAL)
+    expect(out.pensionBase).toBe(8000)
+    expect(out.medicalBase).toBe(7000)
+  })
+
+  it('hydrate 夹取越界与非有限值，且不改动区间内的正常值', () => {
+    const DEFAULT_PERSONAL: PersonalParams = {
+      currentAge: 25, expectedRetireAge: 60, hasSocialInsurance: false, specialDeductionMonth: 0,
+      medicalTierId: undefined, pensionBase: undefined, medicalBase: undefined,
+    }
+    const out = hydrate({ currentAge: NaN, expectedRetireAge: -5, specialDeductionMonth: Infinity }, DEFAULT_PERSONAL)
+    expect(out.currentAge).toBe(DEFAULT_PERSONAL.currentAge)
+    expect(out.expectedRetireAge).toBe(16)
+    expect(out.specialDeductionMonth).toBe(DEFAULT_PERSONAL.specialDeductionMonth)
+  })
+
+  it('东莞规则确实提供该档次，且费率与默认值可区分', () => {
+    const dg = JSON.parse(readFileSync('public/rules/dongguan.json', 'utf8')) as CityRule
+    expect(dg.benefit.medicalTiers?.map(t => t.id)).toContain('combined_account')
+    expect(dg.benefit.medicalTiers?.length).toBe(3)
+  })
+})
+
+/** R5: 缴费基数可由用户在上下限内自选（粤人社规〔2026〕14号第六条） */
+describe('R5 缴费基数可自选', () => {
+  const gz = JSON.parse(readFileSync('public/rules/guangzhou.json', 'utf8')) as CityRule
+
+  it('指定最低档基数时，养老月缴按 baseMin 而非实收收入夹取', () => {
+    const eng = new BenefitEngine(gz.benefit)
+    const r = eng.calcMonthly(30000, true, undefined, { pensionBase: gz.benefit.pension.baseMin, medicalBase: gz.benefit.medical.baseMin })
+    expect(r.pensionMonthly).toBeCloseTo(gz.benefit.pension.baseMin * 0.2, 2)
+    expect(r.medicalMonthly).toBeCloseTo(gz.benefit.medical.baseMin * 0.08, 2)
+  })
+
+  it('不指定基数时保持原有夹取行为（按申报收入，超上限时按上限）', () => {
+    const eng = new BenefitEngine(gz.benefit)
+    const r = eng.calcMonthly(30000, true)
+    expect(r.pensionMonthly).toBeCloseTo(gz.benefit.pension.baseMax * 0.2, 2)
+    // 区间内的申报额则按申报额计
+    const mid = eng.calcMonthly(12000, true)
+    expect(mid.pensionMonthly).toBeCloseTo(12000 * 0.2, 2)
+  })
+
+  it('自选低基数与按申报收入全额申报的差额，正是本产品要回答的核心问题', () => {
+    const eng = new BenefitEngine(gz.benefit)
+    const declared = eng.calcMonthly(30000, true)
+    const chosen = eng.calcMonthly(30000, true, undefined, {
+      pensionBase: gz.benefit.pension.baseMin,
+      medicalBase: gz.benefit.medical.baseMin,
+    })
+    expect(chosen.pensionMonthly).toBeLessThan(declared.pensionMonthly)
+    expect(declared.pensionMonthly - chosen.pensionMonthly).toBeGreaterThan(4000)
+  })
+
+  it('自选基数超出上下限时被夹取，不得逃逸出规则区间', () => {
+    const eng = new BenefitEngine(gz.benefit)
+    const low = eng.calcMonthly(9000, true, undefined, { pensionBase: 100 })
+    expect(low.pensionMonthly).toBeCloseTo(gz.benefit.pension.baseMin * 0.2, 2)
+    const high = eng.calcMonthly(9000, true, undefined, { pensionBase: 999999 })
+    expect(high.pensionMonthly).toBeCloseTo(gz.benefit.pension.baseMax * 0.2, 2)
+  })
+
+  it('自选低基数会降低当期支出——这正是"参保划不划算"的关键变量', () => {
+    const eng = new BenefitEngine(gz.benefit)
+    const min = eng.calcMonthly(9000, true, undefined, { pensionBase: gz.benefit.pension.baseMin })
+    const full = eng.calcMonthly(9000, true)
+    expect(min.totalMonthly).toBeLessThan(full.totalMonthly)
+  })
+})
+
+/** R6: API Key 不得在未告知下持久化；endpoint 必须校验 */
+describe('R6 endpoint 校验与 Key 存储', () => {
+  it('拒绝 http 明文 endpoint', () => {
+    expect(validateEndpoint('http://example.com/v1/chat/completions').ok).toBe(false)
+  })
+
+  it('拒绝无法解析的 endpoint', () => {
+    expect(validateEndpoint('not a url').ok).toBe(false)
+  })
+
+  it('拒绝相对路径 endpoint（会被解析到本站 origin）', () => {
+    expect(validateEndpoint('/v1/chat/completions').ok).toBe(false)
+  })
+
+  it('接受 https endpoint 并返回 host 供 UI 告知用户', () => {
+    const r = validateEndpoint('https://api.deepseek.com/v1/chat/completions')
+    expect(r.ok).toBe(true)
+    expect(r.host).toBe('api.deepseek.com')
+  })
+
+  it('拒绝内嵌用户名密码的 URL（钓鱼手法）', () => {
+    expect(validateEndpoint('https://api.deepseek.com@evil.com/v1/chat/completions').ok).toBe(false)
+  })
+})
+
+/** 跨项一致性：年度与月度净额必须闭合 */
+describe('年度与月度净额闭合', () => {
+  const gz = JSON.parse(readFileSync('public/rules/guangzhou.json', 'utf8')) as CityRule
+  const eng = new ScenarioEngine(gz)
+
+  it('netAnnual 与 netMonthly×12 的差在 0.1 元内', () => {
+    for (const orders of [20, 35, 47, 60]) {
+      const r = eng.runScenario('x', 'x', { ...work, dailyOrders: orders }, costs, personal)
+      expect(Math.abs(r.netAnnual - r.netMonthly * 12), `orders=${orders}`).toBeLessThan(0.1)
+    }
+  })
+
+  it('effectiveRate 为已取整的百分数，不再双重取整', () => {
+    const r = eng.runScenario('x', 'x', work, costs, personal)
+    const expected = Math.round(r.tax.annualTax / (r.income.grossIncome * 12) * 100 * 100) / 100
+    expect(r.tax.effectiveRate).toBeCloseTo(expected, 2)
+  })
+})
+
+/** 退休测算使用规则文件计发基数 */
+describe('退休测算使用规则文件计发基数', () => {
   const base = JSON.parse(readFileSync('public/rules/guangzhou.json', 'utf8')) as CityRule
 
   it('基础养老金按 国发〔2005〕38号 公式 = 计发基数×(1+缴费指数)÷2×年限×1%', () => {

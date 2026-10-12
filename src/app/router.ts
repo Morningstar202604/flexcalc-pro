@@ -10,5 +10,17 @@ export const router = createRouter({
     { path: '/rights', name: 'Rights', component: () => import('../views/RightsView.vue') },
     { path: '/policy', name: 'Policy', component: () => import('../views/PolicyView.vue') },
     { path: '/:pathMatch(.*)*', redirect: '/dashboard' },
-  ]
+  ],
+})
+
+// 懒加载 chunk 失败（发版后旧 HTML 指向已删除的 hash）时 vue-router 只会往 console 打印，
+// router-view 渲染空白且用户无法自行恢复，这里给出可刷新的提示
+router.onError((err) => {
+  const msg = String(err?.message ?? err)
+  if (/dynamically imported module|Failed to fetch|Importing a module script failed/i.test(msg)) {
+    console.error('[router] 页面资源加载失败：', err)
+    window.dispatchEvent(new CustomEvent('app:chunk-error'))
+    return
+  }
+  console.error('[router] 导航失败：', err)
 })

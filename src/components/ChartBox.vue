@@ -8,7 +8,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch, nextTick, computed } from 'vue'
 import type { EChartsOption } from 'echarts'
 import * as echarts from 'echarts'
 
@@ -19,26 +19,38 @@ const props = defineProps<{
 }>()
 
 const el = ref<HTMLElement>()
-const h = ref(props.height || 320)
+const h = computed(() => props.height || 320)
 let chart: echarts.ECharts | null = null
+let ro: ResizeObserver | null = null
 
 function render() {
-  if (!el.value || props.loading) return
+  // 容器被 tab 隐藏或侧栏折叠时宽度为 0，此时 init 会得到 0×0 canvas 且不再自愈
+  if (!el.value || props.loading || el.value.clientWidth === 0) return
   if (!chart) {
     chart = echarts.init(el.value, undefined, { renderer: 'canvas' })
   }
   chart.setOption(props.option, true)
 }
 
-function resize() { chart?.resize() }
+function resize() {
+  if (!el.value || el.value.clientWidth === 0) return
+  chart?.resize()
+}
 
 onMounted(() => {
   nextTick(render)
+  // 侧栏折叠不是 window resize 事件，只靠 window 监听会漏；容器尺寸变化才是准确信号
+  if (typeof ResizeObserver !== 'undefined' && el.value) {
+    ro = new ResizeObserver(resize)
+    ro.observe(el.value)
+  }
   window.addEventListener('resize', resize)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', resize)
+  ro?.disconnect()
+  ro = null
   chart?.dispose()
   chart = null
 })

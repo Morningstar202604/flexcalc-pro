@@ -150,6 +150,35 @@
         <div class="ps-note">{{ activeTierNote }}</div>
       </div>
 
+      <template v-if="store.personal.hasSocialInsurance">
+        <div class="ps-item">
+          <div class="ps-label">养老缴费基数 <b>¥{{ store.personal.pensionBase ?? autoPensionBase }}</b></div>
+          <n-slider
+            :value="store.personal.pensionBase ?? autoPensionBase"
+            :min="pensionBaseMin"
+            :max="pensionBaseMax"
+            :step="100"
+            @update:value="(v: number) => store.personal.pensionBase = v === autoPensionBase ? undefined : v"
+          />
+          <div class="ps-note">
+            规则原文：基数在上下限范围内自选（粤人社规〔2026〕14号第六条）。留空=按申报收入 ¥{{ Math.round(store.scenarios[0]?.income.grossIncome ?? 0) }} 计。
+            <b>选低基数当期省得多，但退休时的平均缴费指数随之降低，基础养老金会减少。</b>
+          </div>
+        </div>
+
+        <div class="ps-item">
+          <div class="ps-label">医保缴费基数 <b>¥{{ store.personal.medicalBase ?? autoMedicalBase }}</b></div>
+          <n-slider
+            :value="store.personal.medicalBase ?? autoMedicalBase"
+            :min="medicalBaseMin"
+            :max="medicalBaseMax"
+            :step="100"
+            @update:value="(v: number) => store.personal.medicalBase = v === autoMedicalBase ? undefined : v"
+          />
+          <div class="ps-note">同上，医保基数也在上下限内自选。留空=按申报收入计。</div>
+        </div>
+      </template>
+
       <div class="ps-item">
         <div class="ps-label">专项附加扣除/月 <b>¥{{ store.personal.specialDeductionMonth }}</b></div>
         <n-slider v-model:value="store.personal.specialDeductionMonth" :min="0" :max="5000" :step="500" />
@@ -186,6 +215,23 @@ const medicalTierOptions = computed(() =>
 const activeTierNote = computed(() =>
   medicalTiers.value.find(t => t.id === (store.personal.medicalTierId || defaultTierId.value))?.note ?? ''
 )
+
+/**
+ * 缴费基数可在法定上下限内自选（粤人社规〔2026〕14号第六条）。
+ * 未自选时展示的 autoPensionBase / autoMedicalBase 是引擎"按申报收入夹取"的结果，
+ * 滑块拖到该值即视为回到默认，避免 personal 里存下一堆与自动值等价的冗余数字。
+ */
+const pensionBaseMin = computed(() => store.rule?.benefit.pension.baseMin ?? 0)
+const pensionBaseMax = computed(() => store.rule?.benefit.pension.baseMax ?? 10000)
+const medicalBaseMin = computed(() => store.rule?.benefit.medical.baseMin ?? 0)
+const medicalBaseMax = computed(() => store.rule?.benefit.medical.baseMax ?? 10000)
+
+function autoBase(min: number, max: number): number {
+  const gross = store.scenarios[0]?.income.grossIncome ?? 0
+  return Math.round(Math.min(Math.max(gross, min), max))
+}
+const autoPensionBase = computed(() => autoBase(pensionBaseMin.value, pensionBaseMax.value))
+const autoMedicalBase = computed(() => autoBase(medicalBaseMin.value, medicalBaseMax.value))
 </script>
 
 <style scoped>

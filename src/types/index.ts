@@ -50,9 +50,17 @@ export interface IncomeRule {
 }
 
 export interface TaxRule {
+  /**
+   * annual_consolidated = 年度汇算清缴口径（税率表一，3%-45%）。
+   * 若平台成为扣缴义务人，真实预扣预缴应改用 61号公告预扣率表二（20%/30%/40%），两者差异很大。
+   */
   method: string
   laborRemuneration: {
     expenseDeductionRate: number
+    /** 61号公告第八条：每次收入不超过 4000 元的，减除费用按 800 元计算 */
+    expenseDeductionFixed?: number
+    /** 该分支的适用阈值（每次收入额上限），由规则文件承载，不写死在代码里 */
+    expenseDeductionThreshold?: number
     basicDeductionMonthly: number
     taxTable: TaxBracket[]
   }
@@ -114,6 +122,10 @@ export interface PersonalParams {
   specialDeductionMonth: number
   /** 医保档次 id，对应 rule.benefit.medicalTiers；为空表示用默认档 */
   medicalTierId?: string
+  /** 用户自选的养老缴费基数；为空表示按申报收入夹取 */
+  pensionBase?: number
+  /** 用户自选的医保缴费基数；为空表示按申报收入夹取 */
+  medicalBase?: number
 }
 
 // ===== 计算结果模型 =====

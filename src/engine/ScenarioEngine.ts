@@ -2,6 +2,7 @@ import type { CityRule, WorkParams, CostParams, PersonalParams, ScenarioResult, 
 import { IncomeEngine } from './IncomeEngine'
 import { TaxEngine } from './TaxEngine'
 import { BenefitEngine } from './BenefitEngine'
+import { round2 as round } from '../utils/number'
 
 export class ScenarioEngine {
   constructor(private rule: CityRule) {}
@@ -13,19 +14,25 @@ export class ScenarioEngine {
 
     const monthlyGross = income.grossIncome
     const tax = new TaxEngine(this.rule.tax).calcLabor(new Array(12).fill(monthlyGross), personal.specialDeductionMonth)
-    const benefit = new BenefitEngine(this.rule.benefit).calcMonthly(monthlyGross, personal.hasSocialInsurance, personal.medicalTierId)
+    // 缴费基数可由用户自选（粤人社规〔2026〕14号第六条），未选时按申报收入夹取
+    const benefit = new BenefitEngine(this.rule.benefit, this.rule.retirement).calcMonthly(
+      monthlyGross, personal.hasSocialInsurance, personal.medicalTierId,
+      { pensionBase: personal.pensionBase, medicalBase: personal.medicalBase },
+    )
 
     const monthlyTax = tax.annualTax / 12
     const insuranceCost = benefit.totalMonthly
     const netMonthly = round(monthlyGross - costBrk.total - monthlyTax - insuranceCost)
-    const netAnnual = round(monthlyGross * 12 - costBrk.total * 12 - tax.annualTax - insuranceCost * 12)
-    const netHourly = round(netMonthly / (work.dailyHours * work.workDaysMonth))
+    // 年度必须等于月度的 12 倍，否则 UI 同屏展示的月净与年净会对不上
+    const netAnnual = round(netMonthly * 12)
+    const hours = safeDivisor(work.dailyHours) * safeDivisor(work.workDaysMonth)
+    const netHourly = round(netMonthly / hours)
 
     const { score: rightsScore, flags: rightsFlags } = this.calcRightsScore(work, costBrk.total, personal, benefit)
     // 保障缺失时封顶为 viable：否则净收入一高就出现"推荐你不参保"的反向激励
     const incomeTier = netMonthly > 7000 ? 'recommended' : netMonthly > 4500 ? 'viable' : 'risky'
     const recommendation = !personal.hasSocialInsurance && incomeTier === 'recommended' ? 'viable' : incomeTier
-    const keyInsights = this.generateInsights(work, costs, tax, netMonthly, benefit)
+    const keyInsights = this.generateInsights(work, costs, tax, netMonthly, benefit, personal)
 
     return { id, name, work, costs, income, costBreakdown: costBrk, tax, benefit, netMonthly, netAnnual, netHourly, rightsScore, rightsFlags, recommendation, keyInsights }
   }
@@ -49,7 +56,7 @@ export class ScenarioEngine {
     const flags: string[] = []
 
     if (!personal.hasSocialInsurance) {
-      flags.push('未缴社保：发生重大疾病/工伤时全额自付，风险极高')
+      flags.push('未缴社保：发生重大疾病时医保与养老待遇全额自付，风险极高')
     }
 
     const uncoveredHighRisk = benefit.items.filter(i => !i.covered && i.risk === 'high')
@@ -85,7 +92,7 @@ export class ScenarioEngine {
     return { score: Math.max(0, score), flags }
   }
 
-  private generateInsights(work: WorkParams, costs: CostParams, tax: { effectiveRate: number; annualTax: number }, netMonthly: number, benefit: ReturnType<BenefitEngine['calcMonthly']>): string[] {
+  private generateInsights(work: WorkParams, costs: CostParams, tax: { effectiveRate: number; annualTax: number }, netMonthly: number, benefit: ReturnType<BenefitEngine['calcMonthly']>, personal: PersonalParams): string[] {
     const insights: string[] = []
     const dailyNet = netMonthly / work.workDaysMonth
     if (netMonthly > 8000) insights.push(`日均净收入 ¥${dailyNet.toFixed(0)}，属于灵活就业高收入群体`)
@@ -97,8 +104,14 @@ export class ScenarioEngine {
     } else {
       insights.push(`若以灵活就业参保（养老+医保），每月需自缴 ¥${(benefit.pensionMonthly + benefit.medicalMonthly).toLocaleString()}，净收入相应下降`)
     }
+    if (personal.pensionBase && personal.pensionBase < this.rule.benefit.pension.baseMin + 1) {
+      insights.push('你选择了最低档缴费基数：当期支出最低，但退休时的平均缴费指数随之降低，基础养老金会减少')
+    }
     return insights
   }
 }
 
-function round(n: number) { return Math.round(n * 100) / 100 }
+/** 除数保护：任一因子为 0 或非有限时回落到 1，避免 netHourly 出现 Infinity */
+function safeDivisor(v: number): number {
+  return Number.isFinite(v) && v > 0 ? v : 1
+}

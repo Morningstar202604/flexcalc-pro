@@ -265,7 +265,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, inject, type Ref } from 'vue'
+import { ref, reactive, computed, inject, watch, type Ref } from 'vue'
 import { NCard, NAlert, NInputNumber, NSelect, NSlider, NSwitch, NButton, NTable, NGrid, NGi, NDivider, NSteps, NStep, NTooltip, NTag, useMessage } from 'naive-ui'
 import { useMainStore } from '../../stores/main'
 import type { CompensationItem, CompensationLegalRef, CompensationResult } from '../../types'
@@ -464,6 +464,13 @@ function calcOverwork(): CalcResult {
   ])
 }
 
+/**
+ * 只有用户实际改动过任一输入项，才把结果交给文书生成器。
+ * 首屏的 DEFAULT_FORM 是预填示例而非用户主张的依据，
+ * 若在 setup 里就写入 store，文书页会把未经核对的示例金额当作"测算结果"填进仲裁请求。
+ */
+const userTouched = ref(false)
+
 function calc() {
   switch (currentScene.value) {
     case 'wage': result.value = calcWage(); break
@@ -473,17 +480,22 @@ function calc() {
     case 'overwork': result.value = calcOverwork(); break
   }
   // 文书生成器读取同一份结果，避免两处各自换算导致金额不一致
-  store.setCompensation(result.value)
+  store.setCompensation(userTouched.value ? result.value : null)
 }
+
+// 用户改动任一输入项即视为已确认，之后的结果才可进入文书
+watch(form, () => {
+  userTouched.value = true
+  calc()
+}, { deep: true })
 
 function resetForm() {
   const defaults = JSON.parse(JSON.stringify(DEFAULT_FORM))[currentScene.value as keyof typeof DEFAULT_FORM]
   Object.assign(form[currentScene.value as keyof typeof form], defaults)
-  calc()
   message.success('已重置当前场景参数')
 }
 
-// Default calc on load
+// 首屏渲染（不写入 store）
 calc()
 </script>
 

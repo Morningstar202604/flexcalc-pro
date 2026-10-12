@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import type { CityRule, WorkParams, CostParams, PersonalParams, ScenarioResult, CompensationResult } from '../types'
 import { ScenarioEngine } from '../engine/ScenarioEngine'
+import { hydrateParams } from '../utils/params'
 
 export const CITIES = [
   { value: 'guangzhou', label: '广州' },
@@ -31,19 +32,11 @@ const DEFAULT_COSTS: CostParams = {
 const DEFAULT_PERSONAL: PersonalParams = {
   currentAge: 25, expectedRetireAge: 60, hasSocialInsurance: false,
   specialDeductionMonth: 0,
-}
-
-/** 只恢复结构已知的字段，避免旧版本残留数据把 NaN/未知键灌进计算 */
-function hydrate<T extends object>(saved: unknown, fallback: T): T {
-  if (!saved || typeof saved !== 'object') return { ...fallback }
-  const out = { ...fallback } as Record<string, unknown>
-  const known = fallback as Record<string, unknown>
-  for (const [k, v] of Object.entries(saved as Record<string, unknown>)) {
-    if (k in known && (typeof v === 'number' || typeof v === 'boolean' || typeof v === 'string')) {
-      out[k] = v
-    }
-  }
-  return out as T
+  // 可选键必须显式出现在 fallback 中：hydrate 的白名单取自 fallback 的键，
+  // 缺键会让写入端存下、读取端静默丢弃（medicalTierId 曾因此每次刷新都丢）
+  medicalTierId: undefined,
+  pensionBase: undefined,
+  medicalBase: undefined,
 }
 
 function loadParams() {
@@ -60,11 +53,12 @@ export const useMainStore = defineStore('main', () => {
   const loadError = ref<string | null>(null)
   const paramsRestored = ref(false)
   let loadSeq = 0
+  let persistTimer: ReturnType<typeof setTimeout> | undefined
   const saved = loadParams()
 
-  const work = ref<WorkParams>(hydrate(saved?.work, DEFAULT_WORK))
-  const costs = ref<CostParams>(hydrate(saved?.costs, DEFAULT_COSTS))
-  const personal = ref<PersonalParams>(hydrate(saved?.personal, DEFAULT_PERSONAL))
+  const work = ref<WorkParams>(hydrateParams(saved?.work, DEFAULT_WORK))
+  const costs = ref<CostParams>(hydrateParams(saved?.costs, DEFAULT_COSTS))
+  const personal = ref<PersonalParams>(hydrateParams(saved?.personal, DEFAULT_PERSONAL))
   paramsRestored.value = !!saved
 
   /** 自定义方案是嵌套结构，数组不能走 hydrate 的键值白名单，需单独校验必要字段 */
@@ -74,11 +68,11 @@ export const useMainStore = defineStore('main', () => {
           const o = p as Record<string, unknown> | null
           return !!o && typeof o.id === 'string' && typeof o.name === 'string'
             && !!o.work && typeof o.work === 'object' && !!o.costs && typeof o.costs === 'object'
-        }).map(p => ({ id: p.id, name: p.name, work: hydrate(p.work, DEFAULT_WORK), costs: hydrate(p.costs, DEFAULT_COSTS) }))
+        }).map(p => ({ id: p.id, name: p.name, work: hydrateParams(p.work, DEFAULT_WORK), costs: hydrateParams(p.costs, DEFAULT_COSTS) }))
       : []
   )
 
-  /** 补偿计算面板的最近一次结果，文书生成器据此填充真实金额 */
+  /** 补偿计算面板的最近一次「用户已确认」结果，文书生成器据此填充真实金额 */
   const compensation = ref<CompensationResult | null>(null)
   function setCompensation(r: CompensationResult | null) { compensation.value = r }
 
@@ -88,25 +82,36 @@ export const useMainStore = defineStore('main', () => {
     const seq = ++loadSeq
     loading.value = true
     loadError.value = null
+    // 无超时的 fetch 在弱网或 SPA 回退挂起时会让 finally 不执行，loading 永久为 true，
+    // 城市选择器被禁用后用户无法自救，只能靠手动刷新
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 12000)
     try {
-      const res = await fetch(`/rules/${city}.json`)
+      const res = await fetch(`/rules/${city}.json`, { signal: controller.signal })
       const ctype = res.headers.get('content-type') || ''
       if (!res.ok) throw new Error(`规则文件加载失败（HTTP ${res.status}）`)
       // 静态托管的 SPA 回退会用 200 + HTML 应答缺失文件，仅判断 res.ok 拦不住
       if (!ctype.includes('json')) throw new Error(`未找到 ${city} 的规则文件`)
       const data = await res.json() as CityRule
+      // CDN 边缘节点返回错版本时，规则里的 cityName 会与用户选的城市静默不一致，
+      // 而侧边栏显示的是 work.city —— 正是本项目反复要防的"深圳抄广州"类事故
+      if (data.city !== city) throw new Error(`规则文件与请求城市不一致（期望 ${city}，实际 ${data.city}）`)
       if (seq !== loadSeq) return
       rule.value = data
-      // 医保档次是各城规则文件自己的条目，切换城市后旧档次 id 在新城中不存在
+      // 医保档次与缴费基数是各城规则文件自己的条目，切换城市后旧值在新城中无意义
       const tierId = personal.value.medicalTierId
       if (tierId && !data.benefit.medicalTiers?.some(t => t.id === tierId)) {
         personal.value.medicalTierId = undefined
       }
+      personal.value.pensionBase = undefined
+      personal.value.medicalBase = undefined
     } catch (err) {
       if (seq !== loadSeq) return
       rule.value = null
-      loadError.value = err instanceof Error ? err.message : String(err)
+      const aborted = err instanceof DOMException && err.name === 'AbortError'
+      loadError.value = aborted ? '加载超时（12秒），请检查网络后重试' : (err instanceof Error ? err.message : String(err))
     } finally {
+      clearTimeout(timer)
       if (seq === loadSeq) loading.value = false
     }
   }
@@ -114,25 +119,32 @@ export const useMainStore = defineStore('main', () => {
   function setCity(city: string) {
     work.value.city = city
     customPlans.value = []
+    // 补偿金额含按本城社保基数做的封顶/保底，跨城沿用会得出错误的主张数额
+    compensation.value = null
     return loadRule(city)
   }
 
   /** 参数是用户逐项调出来的，刷新即丢会让"方案对比"无法复现，故落本地存储 */
   watch([work, costs, personal, customPlans], () => {
-    try {
-      localStorage.setItem(PARAMS_KEY, JSON.stringify({
-        work: work.value, costs: costs.value, personal: personal.value, customPlans: customPlans.value,
-      }))
-    } catch { /* 隐私模式或配额耗尽时静默降级为不持久化 */ }
+    clearTimeout(persistTimer)
+    persistTimer = setTimeout(() => {
+      try {
+        localStorage.setItem(PARAMS_KEY, JSON.stringify({
+          work: work.value, costs: costs.value, personal: personal.value, customPlans: customPlans.value,
+        }))
+      } catch { /* 隐私模式或配额耗尽时静默降级为不持久化 */ }
+    }, 300)
   }, { deep: true })
 
   function resetParams() {
-    work.value = { ...DEFAULT_WORK }
+    // 保留当前城市：DEFAULT_WORK.city 是 guangzhou，直接展开会把用户从深圳/东莞静默切回广州
+    const keepCity = work.value.city
+    work.value = { ...DEFAULT_WORK, city: keepCity }
     costs.value = { ...DEFAULT_COSTS }
     personal.value = { ...DEFAULT_PERSONAL }
     customPlans.value = []
     paramsRestored.value = false
-    return loadRule(work.value.city)
+    return loadRule(keepCity)
   }
 
   const scenarios = computed<ScenarioResult[]>(() => {

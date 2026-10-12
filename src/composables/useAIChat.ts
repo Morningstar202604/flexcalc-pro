@@ -1,6 +1,7 @@
 import { ref, onScopeDispose } from 'vue'
 import type { ScenarioResult } from '../types'
 import { scoreTier, scoreLevel } from '../utils/score'
+import { validateEndpoint } from '../utils/endpoint'
 
 export interface ChatMessage {
   id: string
@@ -16,23 +17,79 @@ export interface ApiConfig {
   apiKey: string
   model: string
   enabled: boolean
+  /**
+   * 是否把 API Key 持久化到 localStorage。
+   * 默认 false —— Key 只留在内存，关闭标签页即失效。
+   * 勾选后明文落盘，同源脚本与浏览器扩展均可读取，属于用户显式承担的风险。
+   */
+  rememberKey: boolean
 }
 
 const STORAGE_KEY = 'flexcalc_ai_cfg'
+/** 用户显式选择"记住 Key"后才写这里；否则 Key 只在内存中，关标签页即失效 */
+const KEY_STORE_KEY = 'flexcalc_ai_key'
 const HISTORY_KEY = 'flexcalc_chat_hist'
+
+/** 单条消息与历史总长上限，防止异常响应撑爆 localStorage 配额 */
+const MAX_MSG_CHARS = 4000
+const MAX_HISTORY = 50
+
+const DEFAULT_CONFIG: ApiConfig = {
+  endpoint: 'https://api.deepseek.com/v1/chat/completions',
+  apiKey: '',
+  model: 'deepseek-chat',
+  enabled: false,
+  rememberKey: false,
+}
 
 function loadConfig(): ApiConfig {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw)
-  } catch { /* ignore */ }
-  return { endpoint: 'https://api.deepseek.com/v1/chat/completions', apiKey: '', model: 'deepseek-chat', enabled: false }
+    const parsed = raw ? JSON.parse(raw) as Partial<ApiConfig> : {}
+    const cfg: ApiConfig = { ...DEFAULT_CONFIG, ...parsed }
+    // 配置形状校验：localStorage 可被同源脚本或用户手改，endpoint/key 类型错会直接崩在 fetch
+    if (typeof cfg.endpoint !== 'string' || typeof cfg.model !== 'string') return { ...DEFAULT_CONFIG }
+    if (typeof cfg.enabled !== 'boolean') cfg.enabled = false
+    if (typeof cfg.rememberKey !== 'boolean') cfg.rememberKey = false
+    cfg.apiKey = ''
+    if (cfg.rememberKey) {
+      try { cfg.apiKey = localStorage.getItem(KEY_STORE_KEY) ?? '' } catch { /* 存储不可用则保持不记住 */ }
+    }
+    return cfg
+  } catch {
+    return { ...DEFAULT_CONFIG }
+  }
+}
+
+function saveConfig(cfg: ApiConfig) {
+  // endpoint/model/enabled 可安全持久化；Key 单独处理，不随配置对象一起落盘
+  const { apiKey: _omit, ...safe } = cfg
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(safe))
+    if (cfg.rememberKey) localStorage.setItem(KEY_STORE_KEY, cfg.apiKey)
+    else localStorage.removeItem(KEY_STORE_KEY)
+  } catch { /* 隐私模式或配额耗尽时静默降级 */ }
+}
+
+function isValidMessage(m: unknown): m is ChatMessage {
+  if (!m || typeof m !== 'object') return false
+  const o = m as Record<string, unknown>
+  return typeof o.id === 'string'
+    && (o.role === 'user' || o.role === 'assistant')
+    && typeof o.content === 'string'
 }
 
 function loadHistory(): ChatMessage[] {
   try {
     const raw = localStorage.getItem(HISTORY_KEY)
-    if (raw) return JSON.parse(raw)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      // 形状校验：防止注入伪造的 assistant 轮次被长期展示为权威建议
+      if (Array.isArray(parsed)) {
+        const valid = parsed.filter(isValidMessage).slice(-MAX_HISTORY)
+        if (valid.length) return valid
+      }
+    }
   } catch { /* ignore */ }
   return [{ id: 'welcome', role: 'assistant', content: '你好！我是灵算 AI 助手。我已读取你当前的数据，可以帮你分析收入结构、税务优化、社保规划、风险评估等。直接输入问题即可，也可以点击下方快捷问题。', timestamp: Date.now() }]
 }
@@ -55,8 +112,12 @@ export function useAIChat() {
     window.removeEventListener('offline', setOffline)
   })
 
-  function saveConfig() { localStorage.setItem(STORAGE_KEY, JSON.stringify(config.value)) }
-  function saveHistory() { localStorage.setItem(HISTORY_KEY, JSON.stringify(messages.value.slice(-50))) }
+  function saveHistory() {
+    const trimmed = messages.value.slice(-MAX_HISTORY).map(m => ({ ...m, content: m.content.slice(0, MAX_MSG_CHARS) }))
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(trimmed))
+    } catch { /* 隐私模式或配额耗尽时静默降级为不持久化 */ }
+  }
 
   function buildContext(scenarios: ScenarioResult[]): string {
     const best = scenarios[0]
@@ -94,7 +155,11 @@ export function useAIChat() {
   }
 
   async function sendOnline(question: string, context: string) {
-    const sysPrompt = `你是"灵算Pro"的决策助手，面向灵活就业者（外卖骑手、网约车司机等）。根据用户当前测算数据给出具体可操作建议。硬性要求：不超过205字；只依据下列数据与用户问题作答；不得编造法律法规名称、文号、税率或政策文件；涉及法律或税务结论时必须提示以官方机构或专业人士意见为准。以下是用户数据（${new Date().toLocaleString('zh-CN')}）：\n${context}`
+    // Authorization 头会发往用户自填的地址，校验失败必须直接拒，不发请求
+    const check = validateEndpoint(config.value.endpoint)
+    if (!check.ok) throw new Error(check.error ?? 'Endpoint 不合法')
+
+    const sysPrompt = `你是"灵算Pro"的决策助手，面向灵活就业者（外卖骑手、网约车司机等）。根据用户当前测算数据给出具体可操作建议。硬性要求：不超过205字；只依据下列数据与用户问题作答；不得编造法律法规名称、文号、税率或政策文件；涉及法律或税务结论时必须提示以官方机构或专业人士意见为准。以下是用户数据：\n${context}`
 
     const recentMsgs = messages.value.filter(m => !m.isStreaming).slice(-6).map(m => ({ role: m.role, content: m.content }))
 
@@ -116,9 +181,9 @@ export function useAIChat() {
       })
 
       if (!resp.ok) {
-        let msg = `API错误${resp.status}`
-        try { const j = await resp.json(); msg = j.error?.message || msg } catch {}
-        throw new Error(msg)
+        // 服务端错误体可能回显请求内容，不把原文渲染进气泡，只做本地化分类
+        const detail = await resp.text().catch(() => '')
+        throw new Error(classifyApiError(resp.status, detail))
       }
 
       reader = resp.body?.getReader()
@@ -171,6 +236,16 @@ export function useAIChat() {
     return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
   }
 
+  /** 把 HTTP 状态映射为可读文案；原始错误体仅留在 console，不进 UI 与本地存储 */
+  function classifyApiError(status: number, detail: string) {
+    if (status === 401 || status === 403) return 'API Key 无效或已过期（HTTP ' + status + '）'
+    if (status === 404) return '接口地址不存在（HTTP 404），请检查 Endpoint 填写'
+    if (status === 429) return '请求过于频繁或额度已用尽（HTTP 429）'
+    if (status >= 500) return '模型服务商异常（HTTP ' + status + '），请稍后重试'
+    if (status >= 400) return '请求被拒绝（HTTP ' + status + '），请检查 Endpoint 与模型名'
+    return '连接失败（HTTP ' + status + '）'
+  }
+
   function stopStreaming() {
     controller.value?.abort()
     controller.value = null
@@ -188,9 +263,10 @@ export function useAIChat() {
       try {
         await sendOnline(question, ctx)
         return
-      } catch (err: any) {
-        if (err?.name === 'AbortError') return
-        messages.value.push({ id: newId('err'), role: 'assistant', content: `⚠️ AI连接失败(${err.message})，已切换规则引擎：\n\n` + ruleReply(question, scenarios), timestamp: Date.now() })
+      } catch (err: unknown) {
+        if (err instanceof DOMException && err.name === 'AbortError') return
+        const msg = String(err instanceof Error ? err.message : (err ?? '未知错误')).slice(0, 200)
+        messages.value.push({ id: newId('err'), role: 'assistant', content: `⚠️ AI连接失败：${msg}。已切换规则引擎：\n\n` + ruleReply(question, scenarios), timestamp: Date.now() })
         saveHistory()
         return
       }
@@ -209,7 +285,7 @@ export function useAIChat() {
     saveHistory()
   }
 
-  function updateConfig(c: Partial<ApiConfig>) { Object.assign(config.value, c); saveConfig() }
+  function updateConfig(c: Partial<ApiConfig>) { Object.assign(config.value, c); saveConfig(config.value) }
 
   return { config, messages, isStreaming, isOnline, showSettings, sendMessage, stopStreaming, clearHistory, updateConfig }
 }

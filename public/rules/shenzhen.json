@@ -29,9 +29,11 @@
     }
   },
   "tax": {
-    "method": "cumulative_withholding",
+    "method": "annual_consolidated",
     "laborRemuneration": {
       "expenseDeductionRate": 0.2,
+      "expenseDeductionFixed": 800,
+      "expenseDeductionThreshold": 4000,
       "basicDeductionMonthly": 5000,
       "taxTable": [
         {
@@ -128,11 +130,13 @@
       "note": "原文：缴费基数下限 6727 元、上限 33633 元；自 2026-01-01 起灵活就业人员缴费费率由 7% 恢复为 8%。依据《深圳市医疗保障办法》（深圳市人民政府令第358号）第九条，灵活就业人员参加职工基本医疗保险一档，以本人申报的月工资收入为基数，由本人以缴费基数的8%按月缴纳"
     },
     "tax": {
-      "title": "中华人民共和国个人所得税法实施条例 + 个人所得税预扣率表二（劳务报酬）",
+      "title": "中华人民共和国个人所得税法实施条例 + 个人所得税税率表一（综合所得）",
       "docNo": "国务院令第707号；国家税务总局公告2018年第61号",
+      "url": "https://fgk.chinatax.gov.cn/zcfgk/c100012/c5194838/content.html",
       "effectiveFrom": "2019-01-01",
       "retrievedAt": "2026-10-12",
-      "confidence": "official"
+      "confidence": "official",
+      "note": "本产品按【年度汇算清缴】口径测算：劳务报酬收入额按减除20%费用（每次收入不超4000元的按800元减除，见个人所得税扣缴申报管理办法第八条）后并入综合所得，减除费用按5000元/月累计，适用税率表一（3%-45%）。若平台成为扣缴义务人，真实预扣应改用预扣率表二（20%/30%/40%），与本口径差异可能很大"
     },
     "minimumWage": {
       "title": "广东省人民政府关于调整我省最低工资标准的通知",

@@ -52,14 +52,33 @@
     </transition>
 
     <!-- Settings modal -->
-    <n-modal v-model:show="showSettings" preset="dialog" title="AI 连接设置" :style="{ width: '420px' }">
-      <n-space vertical :size="14" style="padding-top:10px">
-        <n-alert type="info" :show-icon="true">
-          支持 OpenAI 兼容 API（DeepSeek / Qwen / GPT 等）。Key 仅存于浏览器本地。
+    <n-modal v-model:show="showSettings" preset="dialog" title="AI 连接设置" :style="{ width: '460px' }">
+      <n-space vertical :size="12" style="padding-top:10px">
+        <n-alert type="warning" :show-icon="true">
+          <div>启用 AI 后，以下数据会发送到你填写的第三方模型接口：</div>
+          <ul class="exfil-list">
+            <li>城市、日工时、日单量、月工作天</li>
+            <li>月收入、月成本、月个税、净收入、时薪、权益评分</li>
+            <li>最近 6 条对话内容</li>
+          </ul>
+          <div>本应用自身没有后端，不另存这些数据；关闭 AI 即完全离线。</div>
         </n-alert>
+
         <n-form-item label="启用 AI"><n-switch v-model:value="config.enabled" /></n-form-item>
-        <n-form-item label="Endpoint"><n-input v-model:value="config.endpoint" placeholder="https://api.deepseek.com/v1/chat/completions" /></n-form-item>
-        <n-form-item label="API Key"><n-input v-model:value="config.apiKey" type="password" placeholder="sk-…" show-password-on="click" /></n-form-item>
+        <n-form-item label="Endpoint">
+          <n-input v-model:value="config.endpoint" placeholder="https://api.deepseek.com/v1/chat/completions" />
+        </n-form-item>
+        <div v-if="endpointHost" class="host-line">API Key 将发送至：<b>{{ endpointHost }}</b></div>
+        <n-alert v-if="endpointError" type="error" :show-icon="true">{{ endpointError }}</n-alert>
+
+        <n-form-item label="API Key">
+          <n-input v-model:value="config.apiKey" type="password" placeholder="sk-…" show-password-on="click" />
+        </n-form-item>
+        <n-form-item>
+          <n-checkbox v-model:checked="rememberKey">在本机记住 API Key</n-checkbox>
+          <div class="ps-note-sm">默认不记住：Key 只存在于内存，关闭标签页即失效。勾选后会以明文写入本浏览器 localStorage，同源脚本与浏览器扩展均可读取。</div>
+        </n-form-item>
+
         <n-form-item label="模型"><n-select v-model:value="config.model" :options="modelOptions" /></n-form-item>
         <div style="display:flex;gap:8px;justify-content:flex-end">
           <n-button @click="testConnection" :loading="testing">测试连接</n-button>
@@ -71,9 +90,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, watch } from 'vue'
-import { NButton, NInput, NTag, NDivider, NModal, NSpace, NFormItem, NSelect, NSwitch, NAlert, useMessage } from 'naive-ui'
+import { ref, nextTick, watch, computed } from 'vue'
+import { NButton, NInput, NTag, NDivider, NModal, NSpace, NFormItem, NSelect, NSwitch, NAlert, NCheckbox, useMessage } from 'naive-ui'
 import { useAIChat } from '../composables/useAIChat'
+import { validateEndpoint, deriveModelsUrl } from '../utils/endpoint'
 import type { ScenarioResult } from '../types'
 
 const props = defineProps<{ scenarios: ScenarioResult[] }>()
@@ -85,6 +105,15 @@ const open = ref(false)
 const input = ref('')
 const bodyRef = ref<HTMLElement>()
 const testing = ref(false)
+
+/** 实时显示 Key 将发往哪个主机；非 https 或非法地址直接标红 */
+const endpointCheck = computed(() => validateEndpoint(config.value.endpoint))
+const endpointHost = computed(() => endpointCheck.value.ok ? endpointCheck.value.host : '')
+const endpointError = computed(() => endpointCheck.value.ok ? '' : endpointCheck.value.error)
+const rememberKey = computed({
+  get: () => config.value.rememberKey,
+  set: (v: boolean) => { config.value.rememberKey = v },
+})
 
 const modelOptions = [
   { label: 'DeepSeek Chat', value: 'deepseek-chat' },
@@ -121,20 +150,26 @@ function scrollToBottom() {
 watch(messages, scrollToBottom, { deep: true })
 
 async function testConnection() {
+  if (!config.value.apiKey) { message.warning('请先填入 API Key'); return }
+  // 原来的两次 replace 链不可靠：第二次永远匹配不到，且 Azure 的 deployments 形态会被改坏
+  const derived = deriveModelsUrl(config.value.endpoint)
+  if (!derived.ok) { message.error(derived.error ?? '无法推导测试地址'); return }
   testing.value = true
   try {
-    const resp = await fetch(config.value.endpoint.replace('/chat/completions', '/models').replace('/v1/chat/completions', '/v1/models'), {
-      headers: { Authorization: `Bearer ${config.value.apiKey}` }
-    })
+    const resp = await fetch(derived.url!, { headers: { Authorization: `Bearer ${config.value.apiKey}` } })
     if (resp.ok) message.success('连接成功')
     else message.error(`连接失败：HTTP ${resp.status}`)
-  } catch (e: any) {
-    message.error(`连接失败：${e.message}`)
+  } catch (e: unknown) {
+    message.error(`连接失败：${e instanceof Error ? e.message : '未知错误'}`)
   } finally { testing.value = false }
 }
 
 function saveAndClose() {
-  updateConfig({ endpoint: config.value.endpoint, apiKey: config.value.apiKey, model: config.value.model, enabled: config.value.enabled })
+  if (!endpointCheck.value.ok) { message.error(endpointError.value ?? 'Endpoint 不合法'); return }
+  updateConfig({
+    endpoint: config.value.endpoint, apiKey: config.value.apiKey,
+    model: config.value.model, enabled: config.value.enabled, rememberKey: config.value.rememberKey,
+  })
   message.success('已保存')
   showSettings.value = false
 }
@@ -214,4 +249,10 @@ function saveAndClose() {
 .panel-enter-active { transition: opacity 0.2s, transform 0.2s; }
 .panel-leave-active { transition: opacity 0.15s, transform 0.15s; }
 .panel-enter-from, .panel-leave-to { opacity: 0; transform: translateY(8px); }
+
+.exfil-list { margin: 4px 0; padding-left: 18px; }
+.exfil-list li { font-size: 12px; line-height: 1.6; }
+.host-line { font-size: 12px; color: #475569; padding: 0 0 4px; }
+.host-line b { color: #0f766e; word-break: break-all; }
+.ps-note-sm { font-size: 11px; color: #94a3b8; line-height: 1.5; margin-top: 2px; }
 </style>
