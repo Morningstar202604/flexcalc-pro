@@ -1,3 +1,13 @@
+/**
+ * ScenarioEngine（UI 原计算路径）
+ *
+ * ⚠️ 本文件已不再被 UI 调用，仅作为**对拍基准**保留：
+ * tests/parity/scenario-service.spec.ts 用它逐项比对 application/scenario/ScenarioService
+ * 的产出（收入分项、个税12 期明细、社保、净收入、权益评分、洞察文本、排序摘要）。
+ *
+ * 在该对拍测试被移除之前**请勿删除本文件**，否则将失去「新旧口径一致」的唯一护栏。
+ * 如需修改方案编排逻辑，请改 ScenarioService，然后让对拍测试告诉你哪里不一致。
+ */
 import type { CityRule, WorkParams, CostParams, PersonalParams, ScenarioResult, ComparisonResult } from '../types'
 import { IncomeEngine } from './IncomeEngine'
 import { TaxEngine, type TaxEngineConfig } from './TaxEngine'

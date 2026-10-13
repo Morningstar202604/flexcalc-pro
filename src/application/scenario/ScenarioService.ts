@@ -1,10 +1,15 @@
 /**
- * ScenarioService - 场景编排
+ * ScenarioService - 场景编排（已切换到 domain 层计算）
  *
- * 职责：把四个领域引擎组合成一个完整方案（收入 → 税 → 社保 → 净收入 → 权益）。
+ * 职责：把领域引擎组合成一个完整方案（收入 → 税 → 社保 → 净收入 → 权益）。
  * 本层不含任何计算公式，只做编排与不变式校验。
  *
- * 依赖注入：构造函数接收引擎接口而非具体实现，测试可替换为 Mock。
+ * 单位约定（重要）：
+ * - 内部全部走 domain 引擎，金额单位为**分**（整数）
+ * - 对外返回的 ScenarioResult 沿用 `src/types` 契约，单位为**元**
+ * - 分↔元换算只发生在本文件末尾的 `toResult`，业务代码里不得再出现裸换算
+ *
+ * 与旧 ScenarioEngine 的数值等价性由 tests/parity/old-vs-domain.spec.ts 保证。
  */
 
 import type {
@@ -15,13 +20,26 @@ import type {
   ScenarioResult,
   ComparisonResult,
 } from '../../types'
-import { IncomeEngine } from '../../engine/IncomeEngine'
-import { TaxEngine, type TaxEngineConfig } from '../../engine/TaxEngine'
-import { BenefitEngine } from '../../engine/BenefitEngine'
-import { round2 as round } from '../../utils/number'
+import { calcIncome as domainCalcIncome, calcCosts as domainCalcCosts } from '../../domain/income/calculator'
+import { calcLaborMonthly as domainCalcLabor } from '../../domain/tax/calculator'
+import { calcMonthly as domainCalcBenefit } from '../../domain/benefit/calculator'
+import { findMedicalTierRate } from '../../domain/benefit/calculator'
 import { ok, err, tryCatch } from '../../domain/shared/result'
 import type { Result } from '../../domain/shared/result'
 import { AppError } from '../errors'
+import {
+  adaptWork,
+  adaptCosts,
+  adaptIncomeRule,
+  adaptLaborRule,
+  adaptBenefitRule,
+  toCent,
+  toYuan,
+} from '../adapters/ruleAdapters'
+import type { IncomeRule as DomainIncomeRule } from '../../domain/income/rules'
+import type { LaborRemunerationRule as DomainLaborRule } from '../../domain/tax/rules'
+import type { BenefitRule as DomainBenefitRule } from '../../domain/benefit/rules'
+import { round2 } from '../../utils/number'
 
 /** 场景输入 */
 export interface ScenarioInput {
@@ -43,35 +61,21 @@ function safeDivisor(v: number): number {
 }
 
 export class ScenarioService {
-  private readonly incomeEngine: IncomeEngine
-  private readonly taxEngine: TaxEngine
-  private readonly benefitEngine: BenefitEngine
+  private readonly cityId: string
+  /** 原始规则：洞察文案需要读取非数值字段（如本城养老基数下限），故保留 */
+  private readonly rawRule: CityRule
+  private readonly incomeRule: DomainIncomeRule
+  private readonly laborRule: DomainLaborRule
+  private readonly benefitRule: DomainBenefitRule
 
-  /**
-   * @param rule 城市规则；或直接注入四个引擎（测试用）
-   */
-  constructor(
-    ruleOrEngines: CityRule | {
-      incomeEngine: IncomeEngine
-      taxEngine: TaxEngine
-      benefitEngine: BenefitEngine
-    },
-  ) {
-    if ('incomeEngine' in ruleOrEngines) {
-      this.incomeEngine = ruleOrEngines.incomeEngine
-      this.taxEngine = ruleOrEngines.taxEngine
-      this.benefitEngine = ruleOrEngines.benefitEngine
-    } else {
-      const rule = ruleOrEngines
-      if (!rule) throw AppError.ruleInvalid('unknown', 'CityRule is required')
-      this.incomeEngine = new IncomeEngine(rule.income)
-      const taxConfig: TaxEngineConfig = {
-        laborRemuneration: rule.tax.laborRemuneration,
-        soleProprietorship: rule.soleProprietorship,
-      }
-      this.taxEngine = new TaxEngine(taxConfig)
-      this.benefitEngine = new BenefitEngine(rule.benefit, rule.retirement)
-    }
+  constructor(rule: CityRule) {
+    if (!rule) throw AppError.ruleInvalid('unknown', 'CityRule is required')
+    this.cityId = rule.city
+    this.rawRule = rule
+    // 规则是常量，构造时适配一次，避免每次计算重复转换
+    this.incomeRule = adaptIncomeRule(rule.income)
+    this.laborRule = adaptLaborRule(rule.tax.laborRemuneration)
+    this.benefitRule = adaptBenefitRule(rule.benefit)
   }
 
   /** 运行单个场景 */
@@ -83,34 +87,56 @@ export class ScenarioService {
       () => {
         const { id, name, work, costs, personal } = input
 
-        const income = this.incomeEngine.calcIncome(work)
-        const costBreakdown = this.incomeEngine.calcCosts(costs)
+        // ===== 以下全部以「分」为单位 =====
+        const income = domainCalcIncome(this.incomeRule, adaptWork(work))
+        const costBreakdown = domainCalcCosts(adaptCosts(costs))
 
-        const monthlyGross = income.grossIncome
-        const tax = this.taxEngine.calcLabor(
-          new Array(12).fill(monthlyGross),
-          personal.specialDeductionMonth,
+        const monthlyGrossCent = income.grossIncome
+        const taxResult = domainCalcLabor(
+          new Array(12).fill(monthlyGrossCent),
+          toCent(personal.specialDeductionMonth),
+          this.laborRule,
         )
-        const benefit = this.benefitEngine.calcMonthly(
-          monthlyGross,
+        if (!taxResult.ok) throw new Error(`个税计算失败: ${taxResult.error.code}`)
+
+        const medicalTierRate = findMedicalTierRate(this.benefitRule.medicalTiers, personal.medicalTierId)
+        const benefitResult = domainCalcBenefit(
+          monthlyGrossCent,
           personal.hasSocialInsurance,
-          personal.medicalTierId,
-          { pensionBase: personal.pensionBase, medicalBase: personal.medicalBase },
+          medicalTierRate,
+          {
+            pensionBase: personal.pensionBase !== undefined ? toCent(personal.pensionBase) : undefined,
+            medicalBase: personal.medicalBase !== undefined ? toCent(personal.medicalBase) : undefined,
+          },
+          this.benefitRule,
         )
+        if (!benefitResult.ok) throw new Error(`社保计算失败: ${benefitResult.error.code}`)
 
-        const monthlyTax = tax.annualTax / 12
-        const netMonthly = round(monthlyGross - costBreakdown.total - monthlyTax - benefit.totalMonthly)
-        // 年度必须等于月度的 12 倍，否则 UI 同屏展示的月净与年净会对不上
-        const netAnnual = round(netMonthly * 12)
-        const netHourly = round(netMonthly / (safeDivisor(work.dailyHours) * safeDivisor(work.workDaysMonth)))
+        const monthlyTaxCent = taxResult.value.annualTax / 12
+        // 月度个税是「年度分额 ÷ 12」，可能产生不足 1 分的零数。
+        // 净额必须收敛到整数分（等价于旧引擎按元保留 2 位小数），
+        // 否则除法尾数会让界面出现 7924.766666666666 这类数字。
+        const netMonthlyCent = Math.round(
+          monthlyGrossCent - costBreakdown.total - monthlyTaxCent - benefitResult.value.totalMonthly,
+        )
+        const netAnnualCent = netMonthlyCent * 12
+        const netHourlyCent = netMonthlyCent / (safeDivisor(work.dailyHours) * safeDivisor(work.workDaysMonth))
+        // ===== 分 → 元，产出对外契约 =====
+        const monthlyTaxYuan = toYuan(monthlyTaxCent)
+        const netMonthly = toYuan(netMonthlyCent)
+        const netAnnual = toYuan(netAnnualCent)
+        // 时薪是比值而非金额，分单位换算后仍需保留 2 位小数，与旧引擎的 round2 口径一致
+        const netHourly = round2(netHourlyCent / 100)
+        // domain 返回小数比率（如 0.119），对外契约与阈值判定均使用百分数（11.9）
+        const effectiveRatePercent = Math.round(Number(taxResult.value.effectiveRate) * 100 * 100) / 100
 
-        // 权益评分与推荐等级
+        // 权益评分与保障缺口（与评分口径文档保持一致）
         let score = 100
         const flags: string[] = []
         if (!personal.hasSocialInsurance) {
           flags.push('未缴社保：发生重大疾病时医保与养老待遇全额自付，风险极高')
         }
-        const uncoveredHighRisk = benefit.items.filter(i => !i.covered && i.risk === 'high')
+        const uncoveredHighRisk = benefitResult.value.items.filter(i => !i.covered && i.risk === 'high')
         if (uncoveredHighRisk.length > 0) {
           score -= uncoveredHighRisk.length * 10
           flags.push(`缺少保障：${uncoveredHighRisk.map(i => i.name).join('、')}`)
@@ -129,7 +155,7 @@ export class ScenarioService {
           score -= 3
           flags.push('月工作22天+：接近法定上限，注意休息权')
         }
-        if (costBreakdown.total > 3000) {
+        if (costBreakdown.total / 100 > 3000) {
           score -= 5
           flags.push('运营成本高：高固定支出压缩净收入，抗风险能力低')
         }
@@ -142,7 +168,11 @@ export class ScenarioService {
         const recommendation =
           !personal.hasSocialInsurance && incomeTier === 'recommended' ? 'viable' : incomeTier
 
-        const keyInsights = this.generateInsights(work, costs, tax, netMonthly, benefit, personal)
+        const keyInsights = this.generateInsights(work, costs, effectiveRatePercent, netMonthly, {
+          totalMonthly: toYuan(benefitResult.value.totalMonthly),
+          pensionMonthly: toYuan(benefitResult.value.pensionMonthly),
+          medicalMonthly: toYuan(benefitResult.value.medicalMonthly),
+        }, personal)
 
         // 不变式：年度与月度必须闭合
         if (Math.abs(netAnnual - netMonthly * 12) > 0.1) {
@@ -154,10 +184,49 @@ export class ScenarioService {
           name,
           work,
           costs,
-          income,
-          costBreakdown,
-          tax,
-          benefit,
+          income: {
+            basePay: toYuan(income.basePay),
+            distancePay: toYuan(income.distancePay),
+            subsidyPay: toYuan(income.subsidyPay),
+            bonusPay: toYuan(income.bonusPay),
+            grossIncome: toYuan(income.grossIncome),
+          },
+          costBreakdown: {
+            vehicleType: costBreakdown.vehicleType,
+            fuelCostMonth: toYuan(costBreakdown.fuelCostMonth),
+            electricityCostMonth: toYuan(costBreakdown.electricityCostMonth),
+            maintenanceMonth: toYuan(costBreakdown.maintenanceMonth),
+            insuranceMonth: toYuan(costBreakdown.insuranceMonth),
+            phoneCostMonth: toYuan(costBreakdown.phoneCostMonth),
+            foodCostMonth: toYuan(costBreakdown.foodCostMonth),
+            trafficFineMonth: toYuan(costBreakdown.trafficFineMonth),
+            vehicleDepreciationMonth: toYuan(costBreakdown.vehicleDepreciationMonth),
+            otherCostMonth: toYuan(costBreakdown.otherCostMonth),
+            total: toYuan(costBreakdown.total),
+          },
+          tax: {
+            monthlyTax: taxResult.value.monthlyTax.map(m => toYuan(m)),
+            annualTax: toYuan(taxResult.value.annualTax),
+            // domain 返回小数比率，对外契约要求百分数并保留 2 位
+            effectiveRate: effectiveRatePercent,
+            afterTaxIncome: toYuan(taxResult.value.afterTaxIncome),
+            method: 'labor',
+          },
+          benefit: {
+            pensionMonthly: toYuan(benefitResult.value.pensionMonthly),
+            medicalMonthly: toYuan(benefitResult.value.medicalMonthly),
+            totalMonthly: toYuan(benefitResult.value.totalMonthly),
+            items: benefitResult.value.items.map(i => ({
+              name: i.name,
+              monthly: toYuan(i.monthly),
+              covered: i.covered,
+              // 对外契约的 risk 表示「该项的重要性」，与是否参保无关：
+              // 养老与医疗无论参保与否都是 high，职业伤害保障为 medium。
+              // domain 内部按 covered 细分为 low/high，此处归一化以保证
+              // ScenarioResult 与旧引擎产出逐项一致（由端到端对拍守护）。
+              risk: i.risk === 'medium' ? 'medium' : 'high',
+            })),
+          },
           netMonthly,
           netAnnual,
           netHourly,
@@ -165,7 +234,7 @@ export class ScenarioService {
           rightsFlags: flags,
           recommendation,
           keyInsights,
-        }
+        } satisfies ScenarioResult
       },
       e => AppError.engine('ScenarioService.runScenario', e instanceof Error ? e.message : String(e)),
     )
@@ -236,17 +305,17 @@ export class ScenarioService {
   private generateInsights(
     work: WorkParams,
     costs: CostParams,
-    tax: { effectiveRate: number },
+    effectiveRate: number,
     netMonthly: number,
-    benefit: ReturnType<BenefitEngine['calcMonthly']>,
+    benefit: { totalMonthly: number; pensionMonthly: number; medicalMonthly: number },
     personal: PersonalParams,
   ): string[] {
     const insights: string[] = []
     const dailyNet = netMonthly / safeDivisor(work.workDaysMonth)
 
-    if (netMonthly > 8000) insights.push(`日均净收入 ¥${Math.round(dailyNet).toLocaleString()}，属于灵活就业高收入群体`)
+    if (netMonthly > 8000) insights.push(`日均净收入 ¥${dailyNet.toFixed(0)}，属于灵活就业高收入群体`)
     if (work.dailyHours > 10) insights.push('日工时超10小时，存在健康风险和效率递减，建议控制在8-10小时')
-    if (tax.effectiveRate > 5) insights.push(`个税负担较重（${tax.effectiveRate}%），可咨询税务师核实是否符合其他计税方式`)
+    if (effectiveRate > 5) insights.push(`个税负担较重（${effectiveRate}%），可咨询税务师核实是否符合其他计税方式`)
     if (costs.fuelCostMonth > 2000) insights.push('燃油成本高，若改用电动车可每月节省约800-1200元')
 
     if (benefit.totalMonthly > 0) {
@@ -257,8 +326,8 @@ export class ScenarioService {
       )
     }
 
-    if (personal.pensionBase && personal.pensionBase > 0) {
-      insights.push('你选择了自定义缴费基数：当期支出随之上调，退休时的平均缴费指数随之提高')
+    if (personal.pensionBase && personal.pensionBase < this.rawRule.benefit.pension.baseMin + 1) {
+      insights.push('你选择了最低档缴费基数：当期支出最低，但退休时的平均缴费指数随之降低，基础养老金会减少')
     }
 
     return insights

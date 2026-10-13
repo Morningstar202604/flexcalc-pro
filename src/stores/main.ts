@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import type { CityRule, WorkParams, CostParams, PersonalParams, ScenarioResult, CompensationResult } from '../types'
-import { ScenarioEngine } from '../engine/ScenarioEngine'
+import { ScenarioService } from '../application/scenario/ScenarioService'
 import { hydrateParams } from '../utils/params'
 
 export const CITIES = [
@@ -76,7 +76,14 @@ export const useMainStore = defineStore('main', () => {
   const compensation = ref<CompensationResult | null>(null)
   function setCompensation(r: CompensationResult | null) { compensation.value = r }
 
-  const engine = computed(() => rule.value ? new ScenarioEngine(rule.value) : null)
+  // 编排走 application 层 ScenarioService（内部已切到 domain 引擎），
+  // 与旧 ScenarioEngine 的数值等价性由 tests/parity/old-vs-domain.spec.ts 保证
+  const engine = computed(() => rule.value ? new ScenarioService(rule.value) : null)
+
+  /** 取出 Result 的成功值；失败时返回 null，让 UI 走空态而不是抛错白屏 */
+  function unwrap<T>(r: { ok: true; value: T } | { ok: false }): T | null {
+    return r.ok ? r.value : null
+  }
 
   async function loadRule(city: string) {
     const seq = ++loadSeq
@@ -151,14 +158,25 @@ export const useMainStore = defineStore('main', () => {
     const eng = engine.value
     if (!eng) return []
     const list = [
-      eng.runScenario('current', '当前方案', work.value, costs.value, personal.value),
-      eng.runScenario('more_hours', '多跑2小时', { ...work.value, dailyHours: Math.min(work.value.dailyHours + 2, 14) }, costs.value, personal.value),
-      eng.runScenario('more_orders', '多接5单', { ...work.value, dailyOrders: work.value.dailyOrders + 5 }, costs.value, personal.value),
+      { id: 'current', name: '当前方案', work: work.value, costs: costs.value, personal: personal.value },
+      { id: 'more_hours', name: '多跑2小时', work: { ...work.value, dailyHours: Math.min(work.value.dailyHours + 2, 14) }, costs: costs.value, personal: personal.value },
+      { id: 'more_orders', name: '多接5单', work: { ...work.value, dailyOrders: work.value.dailyOrders + 5 }, costs: costs.value, personal: personal.value },
     ]
+    const results = list
+      .map(s => unwrap(eng.runScenario(s)))
+      .filter((s): s is ScenarioResult => s !== null)
+
     if (!personal.value.hasSocialInsurance) {
-      list.push(eng.runScenario('with_insurance', '缴齐社保', work.value, costs.value, { ...personal.value, hasSocialInsurance: true }))
+      const insured = unwrap(eng.runScenario({ id: 'with_insurance', name: '缴齐社保', work: work.value, costs: costs.value, personal: { ...personal.value, hasSocialInsurance: true } }))
+      if (insured) results.push(insured)
     }
-    return [...list, ...customPlans.value.map(p => eng.runScenario(p.id, p.name, p.work, p.costs, personal.value))]
+
+    for (const p of customPlans.value) {
+      const custom = unwrap(eng.runScenario({ id: p.id, name: p.name, work: p.work, costs: p.costs, personal: personal.value }))
+      if (custom) results.push(custom)
+    }
+
+    return results
   })
 
   function addScenario(name: string, w: WorkParams, c: CostParams) {
@@ -169,7 +187,14 @@ export const useMainStore = defineStore('main', () => {
     customPlans.value = customPlans.value.filter(p => p.id !== id)
   }
 
-  const comparison = computed(() => engine.value ? engine.value.compare(scenarios.value) : null)
+  const comparison = computed(() => {
+    const eng = engine.value
+    const list = scenarios.value
+    if (!eng || list.length === 0) return null
+    return unwrap(eng.compare({
+      scenarios: list.map(s => ({ id: s.id, name: s.name, work: s.work, costs: s.costs, personal: personal.value })),
+    }))
+  })
 
   return { rule, loading, loadError, paramsRestored, work, costs, personal, customPlans, compensation, setCompensation, scenarios, comparison, loadRule, setCity, resetParams, addScenario, removeScenario }
 })

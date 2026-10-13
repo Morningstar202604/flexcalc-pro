@@ -1,3 +1,10 @@
+/**
+ * IncomeEngine（UI 原计算路径）
+ *
+ * ⚠️ 本文件已不再被 UI 调用，仅作为**对拍基准**保留：
+ * tests/parity/old-vs-domain.spec.ts 用它比对 domain/income 的产出（单位：元 vs 分）。
+ * 在该对拍测试被移除之前请勿删除。
+ */
 import type { IncomeRule, CostParams, WorkParams, IncomeBreakdown, CostBreakdown } from '../types'
 import { round2 as round } from '../utils/number'
 

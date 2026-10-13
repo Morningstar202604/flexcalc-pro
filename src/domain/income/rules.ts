@@ -1,15 +1,24 @@
 /** 纯类型定义：品牌类型确保单位安全 */
 
 // ===== 品牌类型 =====
-/** 分（Cent） */
-export type Cent = number & { readonly __brand: unique symbol }
+// Cent 统一取自 domain/shared/value-objects（全域唯一来源）。
+// 此前本文件另行声明过一份形状不同的 Cent（__brand: unique symbol），
+// 与 tax / benefit 使用的 Brand<number,'Cent'> 不兼容，导致适配器无法赋值。
+// 现统一为单一来源，避免同一概念出现两套不兼容的品牌类型。
+import { Cent } from '../shared/value-objects'
+
+/** 分（Cent）：金额最小单位。直接复用 domain/shared/value-objects 的品牌工具，
+ *  导出同名符号以便 `import { Cent } from './rules'` 的既有调用方不受影响。 */
+export { Cent }
 /** 千米 */
-export type Kilometer = number & { readonly __brand: unique symbol }
+export type Kilometer = number & { readonly __brand: 'Kilometer' }
 /** 小时 */
-export type Hour = number & { readonly __brand: unique symbol }
+export type Hour = number & { readonly __brand: 'Hour' }
 
 /** 构造品牌类型的工厂函数 */
-export function cent(n: number): Cent { return n as Cent }
+export function cent(n: number): Cent {
+  return Cent.create(Number.isFinite(n) ? Math.round(n) : 0)
+}
 export function kilometer(n: number): Kilometer { return n as Kilometer }
 export function hour(n: number): Hour { return n as Hour }
 

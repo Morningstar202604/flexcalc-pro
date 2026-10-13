@@ -22,7 +22,7 @@
 npm ci
 npm run dev          # http://localhost:3000（Web）
 npm run tauri:dev    # 桌面端（需 Rust 工具链）
-npm test             # vitest，334 例
+npm test             # vitest，697 例
 npm run verify       # 引擎自检：净收入恒等式闭合
 npm run build        # vue-tsc --noEmit && vite build
 npm run tauri:build  # 桌面端安装包
@@ -40,8 +40,9 @@ src/
 ├── application/     用例编排：ScenarioService / CompensationService / RightsService
 │                    全部返回 Result<T, AppError>，不向外抛异常
 ├── infrastructure/  适配器：localStorage / IndexedDB / HTTP 规则加载 / 密钥 / 日志
-├── engine/          现有引擎（计算口径与 domain 层一致，暂未合并）
-├── stores/          Pinia 状态与参数持久化
+├── engine/          旧引擎，**仅作为对拍基准保留**（ScenarioEngine / IncomeEngine
+│                    已无生产调用方；TaxEngine / BenefitEngine 仍被税务与退休面板使用）
+├── stores/          Pinia 状态与参数持久化（编排已切到 application/ScenarioService）
 ├── components/      UI 组件与面板
 └── views/           五个页面
 ```
@@ -49,6 +50,25 @@ src/
 分层原则：domain 不依赖 Vue/框架/网络；application 只做编排不含公式；
 infrastructure 承担全部 I/O 与副作用。**异步边界被隔离在 infrastructure**——
 领域层的规则提供端口保持同步，网络不确定性不泄漏进计算逻辑。
+
+## 换算约定
+
+- domain 层金额一律用**分**（整数）运算，杜绝浮点误差
+- 对外契约与 UI 一律用**元**
+- 换算只发生在 `application/adapters/ruleAdapters.ts` 与 ScenarioService 的结果边界，
+  业务代码中不允许出现裸的 ×100 / ÷100
+
+## 等价性保障
+
+`tests/parity/` 下有两组对拍，是「重构没有改变用户看到的数字」的护栏：
+
+| 文件 | 覆盖 |
+|---|---|
+| `old-vs-domain.spec.ts` | 引擎级：3 城 × 收入/个税/社保/退休逐位比对到分（150 例） |
+| `scenario-service.spec.ts` | 端到端：整条编排链，含权益评分、洞察文本、排序摘要（213 例） |
+
+`src/engine/ScenarioEngine.ts` 与 `src/engine/IncomeEngine.ts` 已无生产调用方，
+**专供对拍使用**。修改方案编排请改 `ScenarioService`，让对拍告诉你哪里不一致。
 
 ## AI 助手与你的 API Key
 
