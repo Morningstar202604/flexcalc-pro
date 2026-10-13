@@ -16,6 +16,16 @@
           </div>
         </div>
 
+        <!-- Mobile menu button -->
+        <button
+          class="icon-btn mobile-menu-btn"
+          @click="toggleMobileSidebar"
+          :aria-label="mobileSidebarOpen ? '关闭参数设置' : '打开参数设置'"
+          aria-controls="params-sidebar"
+        >
+          <MenuIcon class="icon" />
+        </button>
+
         <!-- Navigation -->
         <nav class="header-nav" aria-label="主导航">
           <a
@@ -55,8 +65,8 @@
             <MoonIcon v-else class="icon" />
           </button>
 
-          <!-- AI Assistant Trigger -->
-          <ChatAssistantTrigger :scenarios="store.scenarios" />
+          <!-- AI 助手：组件自带悬浮按钮与面板，勿再叠加额外的触发器 -->
+          <ChatAssistant :scenarios="store.scenarios" />
         </div>
       </div>
     </header>
@@ -65,8 +75,9 @@
     <div class="layout-main">
       <!-- Sidebar -->
       <aside
+        id="params-sidebar"
         class="sidebar"
-        :class="{ collapsed: sidebarCollapsed }"
+        :class="{ collapsed: sidebarCollapsed, 'mobile-open': mobileSidebarOpen }"
         aria-label="参数设置"
       >
         <div class="sidebar-header">
@@ -93,10 +104,8 @@
 
       <!-- Content -->
       <main class="content" :class="{ 'content-full': sidebarCollapsed }">
-        <!-- Global Alerts -->
-        <Teleport to="body">
-          <n-message-provider />
-        </Teleport>
+        <!-- 提示容器由 App.vue 的 n-message-provider 统一提供，
+             此处再嵌套一层会导致 useMessage() 归属不确定 -->
 
         <div v-if="store.loadError" class="global-alert error">
           <AlertIcon class="icon" />
@@ -136,13 +145,12 @@ import { useRouter, useRoute } from 'vue-router'
 import { NButton } from 'naive-ui'
 import { useMainStore } from '../stores/main'
 import ParamSidebar from '../components/ParamSidebar.vue'
-import ChatAssistantTrigger from '../components/ChatAssistantTrigger.vue'
+import ChatAssistant from '../components/ChatAssistant.vue'
 
 // Icons
 import {
   DashboardIcon,
   GitCompareIcon,
-  ReceiptIcon,
   CalculatorIcon,
   ShieldCheckIcon,
   BookOpenIcon,
@@ -151,6 +159,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   AlertIcon,
+  MenuIcon,
 } from '../components/icons'
 
 const router = useRouter()
@@ -164,13 +173,15 @@ const mobileSidebarOpen = ref(false)
 const isDark = ref(false)
 const isMobile = ref(false)
 
+// key 必须与 src/app/router.ts 中的路由 name 完全一致：
+// onNav 用 router.push({ name: key })，大小写不符会静默失败；
+// activeKey 直接比较 route.name，不一致则导航永远没有高亮。
 const navItems = [
-  { key: 'dashboard', label: '总览', path: '/dashboard', icon: DashboardIcon },
-  { key: 'scenario', label: '方案对比', path: '/scenario', icon: GitCompareIcon },
-  { key: 'income', label: '收支明细', path: '/income', icon: ReceiptIcon },
-  { key: 'planning', label: '税务与养老', path: '/planning', icon: CalculatorIcon },
-  { key: 'rights', label: '权益护航', path: '/rights', icon: ShieldCheckIcon },
-  { key: 'policy', label: '政策百科', path: '/policy', icon: BookOpenIcon },
+  { key: 'Dashboard', label: '总览', path: '/dashboard', icon: DashboardIcon },
+  { key: 'Scenario', label: '方案对比', path: '/scenario', icon: GitCompareIcon },
+  { key: 'Planning', label: '税务与养老', path: '/planning', icon: CalculatorIcon },
+  { key: 'Rights', label: '权益护航', path: '/rights', icon: ShieldCheckIcon },
+  { key: 'Policy', label: '政策百科', path: '/policy', icon: BookOpenIcon },
 ]
 
 function onNav(key: string) {
@@ -179,18 +190,30 @@ function onNav(key: string) {
 }
 
 function goDashboard() {
-  router.push({ name: 'dashboard' })
+  router.push({ name: 'Dashboard' })
 }
 
 function toggleTheme() {
   isDark.value = !isDark.value
   document.documentElement.classList.toggle('dark', isDark.value)
-  localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
+  // 隐私模式下 localStorage.setItem 会抛异常，必须吞掉：
+  // 主题切换本身已生效，写入失败只影响下次启动的偏好，不该中断交互
+  try {
+    localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
+  } catch {
+    /* 无法持久化，忽略 */
+  }
 }
 
 function checkMobile() {
-  isMobile.value = window.innerWidth < 768
-  if (isMobile.value) sidebarCollapsed.value = true
+  const mobile = window.innerWidth < 768
+  isMobile.value = mobile
+  // 离开移动端时收起移动抽屉，避免回到桌面端后遮罩残留
+  if (!mobile) mobileSidebarOpen.value = false
+}
+
+function toggleMobileSidebar() {
+  mobileSidebarOpen.value = !mobileSidebarOpen.value
 }
 
 function handleScroll() {
@@ -621,6 +644,12 @@ onUnmounted(() => {
   margin: 0;
 }
 
+/* ---------- Mobile Menu Button ---------- */
+/* 仅移动端显示：桌面端侧栏常驻，不需要汉堡按钮 */
+.mobile-menu-btn {
+  display: none;
+}
+
 /* ---------- Mobile Sidebar Overlay ---------- */
 .sidebar-overlay {
   display: none;
@@ -638,11 +667,17 @@ onUnmounted(() => {
 }
 
 @media (max-width: 767px) {
+  .mobile-menu-btn {
+    display: flex;
+  }
+
   .sidebar {
     transform: translateX(-100%);
   }
 
-  .sidebar:not(.collapsed) {
+  /* 移动端抽屉由 mobileSidebarOpen 驱动，不再复用 collapsed：
+     collapsed 还要控制桌面端的折叠宽度，两者混用会导致参数栏无法打开 */
+  .sidebar.mobile-open {
     transform: translateX(0);
     box-shadow: var(--color-shadow-xl);
   }
@@ -654,6 +689,11 @@ onUnmounted(() => {
   .content,
   .content-full {
     margin-left: 0;
+  }
+
+  /* 全局告警在移动端必须从屏幕左侧铺满，否则会按侧栏宽度偏移出可视区 */
+  .global-alert {
+    left: var(--space-4);
   }
 
   .sidebar-overlay {

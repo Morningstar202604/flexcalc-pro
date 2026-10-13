@@ -1,5 +1,5 @@
 // 共享 ECharts 基础配置 — 消除各视图重复的轴/网格/配色定义
-import type { EChartsOption } from 'echarts'
+import type { EChartsCoreOption } from 'echarts/core'
 
 /** 方案系列色（主色 → 递次淡化） */
 export const SERIES_COLORS = ['#0d9488', '#64748b', '#94a3b8', '#cbd5e1']
@@ -42,4 +42,4 @@ export function legend(data: string[]) {
   return { data, textStyle: { fontSize: 11, color: '#64748b' } }
 }
 
-export type { EChartsOption }
+export type { EChartsCoreOption }

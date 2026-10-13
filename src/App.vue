@@ -7,11 +7,22 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import { NConfigProvider, NMessageProvider, type GlobalThemeOverrides } from 'naive-ui'
 import MainLayout from './layouts/MainLayout.vue'
+import { useMainStore } from './stores/main'
 
 // Import global styles
 import '@/styles/global.css'
+
+const store = useMainStore()
+
+// 应用启动必须加载本城规则：store.rule 为 null 时 scenarios/comparison 全为空，
+// 所有页面会显示为「正常但全是零」的空界面，且 loadError 也是 null 不会报错。
+// 启动加载是唯一的兜底入口——切城市由 ParamSidebar 触发，失败重试由 MainLayout 触发。
+onMounted(() => {
+  void store.loadRule(store.work.city)
+})
 
 const themeOverrides: GlobalThemeOverrides = {
   common: {

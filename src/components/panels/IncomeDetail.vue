@@ -53,7 +53,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { EChartsOption } from 'echarts'
+import type { EChartsCoreOption } from 'echarts/core'
 import { NCard, NGrid, NGi } from 'naive-ui'
 import { useMainStore } from '../../stores/main'
 import { axisX, axisY, GRID, C } from '../../utils/chart'
@@ -69,7 +69,7 @@ function safeDiv(numerator: number, denominator: number, digits: number): string
   return (numerator / denominator).toFixed(digits)
 }
 
-const waterfallOption = computed<EChartsOption>(() => {
+const waterfallOption = computed<EChartsCoreOption>(() => {
   const v = s.value
   if (!v) return {}
   const gross = v.income.grossIncome
@@ -94,7 +94,7 @@ const waterfallOption = computed<EChartsOption>(() => {
   }
 })
 
-const costPieOption = computed<EChartsOption>(() => {
+const costPieOption = computed<EChartsCoreOption>(() => {
   const c = s.value?.costs
   if (!c) return {}
   const data = [
@@ -118,7 +118,7 @@ const costPieOption = computed<EChartsOption>(() => {
   }
 })
 
-const yearlyOption = computed<EChartsOption>(() => {
+const yearlyOption = computed<EChartsCoreOption>(() => {
   const v = s.value
   if (!v) return {}
   const factors = [0.93, 0.88, 0.98, 1.03, 1.07, 1.10, 1.13, 1.10, 1.05, 0.97, 0.90, 0.85]

@@ -83,7 +83,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { EChartsOption } from 'echarts'
+import type { EChartsCoreOption } from 'echarts/core'
 import { NCard, NGrid, NGi, NAlert, NSteps, NStep } from 'naive-ui'
 import { useMainStore } from '../../stores/main'
 import { TaxEngine, type TaxEngineConfig } from '../../engine/TaxEngine'
@@ -146,7 +146,7 @@ const itrVerified = computed(() => store.rule?.sources.soleItr?.confidence === '
 const saving = computed(() => (itrVerified.value ? Math.max(0, laborTax.value - soleTotalTax.value) : 0))
 const savingRate = computed(() => laborTax.value > 0 ? (saving.value / laborTax.value * 100).toFixed(0) : '0')
 
-const taxCompareOption = computed<EChartsOption>(() => {
+const taxCompareOption = computed<EChartsCoreOption>(() => {
   const incomes = [36000, 50000, 80000, 100000, 120000, 150000, 200000, 300000]
   if (!taxEngine.value) return {}
   const laborTaxes = incomes.map(inc => Math.round(taxEngine.value!.calcLaborAnnual(inc, store.personal.specialDeductionMonth).annualTax))

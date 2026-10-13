@@ -69,7 +69,7 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
-import type { EChartsOption } from 'echarts'
+import type { EChartsCoreOption } from 'echarts/core'
 import { NCard, NGrid, NGi, NTag, NSpace, NButton, NModal, NInput, NSlider } from 'naive-ui'
 import { useMainStore } from '../../stores/main'
 import { axisX, axisY, GRID, SERIES_COLORS } from '../../utils/chart'
@@ -78,7 +78,7 @@ import ChartBox from '../ChartBox.vue'
 
 const store = useMainStore()
 
-const compareOption = computed<EChartsOption>(() => {
+const compareOption = computed<EChartsCoreOption>(() => {
   const comp = store.comparison
   if (!comp) return {}
   return {

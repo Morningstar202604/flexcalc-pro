@@ -77,7 +77,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { EChartsOption } from 'echarts'
+import type { EChartsCoreOption } from 'echarts/core'
 import { NCard, NGrid, NGi, NTable } from 'naive-ui'
 import { useMainStore } from '../../stores/main'
 import { BenefitEngine } from '../../engine/BenefitEngine'
@@ -109,7 +109,7 @@ const replaceRate = computed(() => {
 
 const totalCost = computed(() => retireResult.value.months * monthlyContribution.value)
 
-const tierOption = computed<EChartsOption>(() => {
+const tierOption = computed<EChartsCoreOption>(() => {
   if (!engine.value) return {}
   const baseMin = store.rule?.benefit.pension.baseMin || 5000
   const baseMax = store.rule?.benefit.pension.baseMax || 26000
@@ -137,7 +137,7 @@ const tierOption = computed<EChartsOption>(() => {
   }
 })
 
-const growthOption = computed<EChartsOption>(() => {
+const growthOption = computed<EChartsCoreOption>(() => {
   if (!engine.value) return {}
   const months = (store.personal.expectedRetireAge - store.personal.currentAge) * 12
   const annualReturn = store.rule?.retirement.assumedAnnualReturn ?? 0.05

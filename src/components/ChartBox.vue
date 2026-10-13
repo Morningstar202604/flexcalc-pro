@@ -8,38 +8,70 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch, nextTick, computed } from 'vue'
-import type { EChartsOption } from 'echarts'
-import * as echarts from 'echarts'
+import { ref, onMounted, onBeforeUnmount, watch, nextTick, computed, shallowRef } from 'vue'
+import type { EChartsCoreOption, EChartsType } from 'echarts/core'
+import { use } from 'echarts/core'
+import { CanvasRenderer } from 'echarts/renderers'
+import { BarChart, LineChart, PieChart, ScatterChart, HeatmapChart } from 'echarts/charts'
+import {
+  TitleComponent,
+  TooltipComponent,
+  LegendComponent,
+  GridComponent,
+  VisualMapComponent,
+  DatasetComponent,
+  ToolboxComponent,
+  DataZoomComponent,
+  DataZoomInsideComponent,
+  DataZoomSliderComponent
+} from 'echarts/components'
+
+// 仅注册实际使用的图表与组件（按需引入，显著减小包体积）
+use([
+  CanvasRenderer,
+  BarChart, LineChart, PieChart, ScatterChart, HeatmapChart,
+  TitleComponent, TooltipComponent, LegendComponent,
+  GridComponent, VisualMapComponent, DatasetComponent,
+  ToolboxComponent, DataZoomComponent, DataZoomInsideComponent, DataZoomSliderComponent
+])
+
+// 惰性导入 echarts init 函数，避免打包时引入完整库
+let initCharts: typeof import('echarts/core').init | null = null
+async function getInit(): Promise<typeof import('echarts/core').init> {
+  if (!initCharts) {
+    const mod = await import('echarts/core')
+    initCharts = mod.init
+  }
+  return initCharts
+}
 
 const props = defineProps<{
-  option: EChartsOption
+  option: EChartsCoreOption
   height?: number
   loading?: boolean
 }>()
 
 const el = ref<HTMLElement>()
 const h = computed(() => props.height || 320)
-let chart: echarts.ECharts | null = null
+const chart = shallowRef<EChartsType | null>(null)
 let ro: ResizeObserver | null = null
 
-function render() {
-  // 容器被 tab 隐藏或侧栏折叠时宽度为 0，此时 init 会得到 0×0 canvas 且不再自愈
+async function render() {
   if (!el.value || props.loading || el.value.clientWidth === 0) return
-  if (!chart) {
-    chart = echarts.init(el.value, undefined, { renderer: 'canvas' })
+  if (!chart.value) {
+    const init = await getInit()
+    chart.value = init(el.value, undefined, { renderer: 'canvas' })
   }
-  chart.setOption(props.option, true)
+  chart.value.setOption(props.option, true)
 }
 
 function resize() {
   if (!el.value || el.value.clientWidth === 0) return
-  chart?.resize()
+  chart.value?.resize()
 }
 
 onMounted(() => {
   nextTick(render)
-  // 侧栏折叠不是 window resize 事件，只靠 window 监听会漏；容器尺寸变化才是准确信号
   if (typeof ResizeObserver !== 'undefined' && el.value) {
     ro = new ResizeObserver(resize)
     ro.observe(el.value)
@@ -51,8 +83,8 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', resize)
   ro?.disconnect()
   ro = null
-  chart?.dispose()
-  chart = null
+  chart.value?.dispose()
+  chart.value = null
 })
 
 watch(() => props.option, () => nextTick(render))

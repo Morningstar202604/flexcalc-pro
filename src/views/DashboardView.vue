@@ -83,7 +83,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import type { EChartsOption } from 'echarts'
+import type { EChartsCoreOption } from 'echarts/core'
 import { NCard, NGrid, NGi, NEmpty, NDataTable, NButton, type DataTableColumns } from 'naive-ui'
 import { useMainStore } from '../stores/main'
 import { axisX, axisY, GRID, SERIES_COLORS, C } from '../utils/chart'
@@ -126,7 +126,7 @@ const rankCols: DataTableColumns<RankRow> = [
   { title: '评级', key: 'tag', width: 72, align: 'center', render: (row) => row.tag === 'recommended' ? '推荐' : row.tag === 'viable' ? '可行' : '有风险' },
 ]
 
-const barOption = computed<EChartsOption>(() => {
+const barOption = computed<EChartsCoreOption>(() => {
   const comp = store.comparison
   if (!comp) return {}
   return {
@@ -142,7 +142,7 @@ const barOption = computed<EChartsOption>(() => {
   }
 })
 
-const pieOption = computed<EChartsOption>(() => {
+const pieOption = computed<EChartsCoreOption>(() => {
   const best = store.comparison?.best
   if (!best) return {}
   return {
