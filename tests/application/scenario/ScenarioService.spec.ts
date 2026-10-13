@@ -1,0 +1,177 @@
+import { describe, it, expect, beforeAll } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { ScenarioService } from '../../../src/application/scenario/ScenarioService';
+import { IncomeEngine } from '../../../src/engine/IncomeEngine';
+import { TaxEngine } from '../../../src/engine/TaxEngine';
+import { BenefitEngine } from '../../../src/engine/BenefitEngine';
+import type { CityRule, WorkParams, CostParams, PersonalParams } from '../../../src/types';
+import { isOk, isErr, unwrap } from '../../../src/domain/shared/result';
+
+const rule = JSON.parse(readFileSync('public/rules/guangzhou.json', 'utf8')) as CityRule;
+
+const work: WorkParams = {
+  city: 'guangzhou', dailyHours: 10, dailyOrders: 35,
+  avgDistance: 2.5, workDaysMonth: 26, rainDaysMonth: 3, holidayDaysMonth: 2,
+};
+const costs: CostParams = {
+  vehicleType: 'electric', fuelCostMonth: 0, electricityCostMonth: 300, maintenanceMonth: 200,
+  insuranceMonth: 100, phoneCostMonth: 100, foodCostMonth: 800, trafficFineMonth: 50,
+  vehicleDepreciationMonth: 300, otherCostMonth: 100,
+};
+const personal: PersonalParams = {
+  currentAge: 25, expectedRetireAge: 60, hasSocialInsurance: false, specialDeductionMonth: 0,
+};
+
+describe('ScenarioService 集成测试', () => {
+  let service: ScenarioService;
+
+  beforeAll(() => {
+    service = new ScenarioService(rule);
+  });
+
+  /** 基础场景：当前参数 */
+  it('runScenario: 当前方案返回完整 ScenarioResult', () => {
+    const result = service.runScenario({ id: 'current', name: '当前方案', work, costs, personal });
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) return;
+    const r = result.value;
+    expect(r.id).toBe('current');
+    expect(r.name).toBe('当前方案');
+    expect(r.income.grossIncome).toBeGreaterThan(0);
+    expect(r.costBreakdown.total).toBeCloseTo(1950, 1);
+    expect(r.tax.annualTax).toBeGreaterThanOrEqual(0);
+    expect(r.benefit.totalMonthly).toBe(0); // 未参保
+    expect(r.netMonthly).toBeCloseTo(r.income.grossIncome - r.costBreakdown.total - r.tax.annualTax / 12, 1);
+    expect(r.netAnnual).toBeCloseTo(r.netMonthly * 12, 1);
+    expect(r.netHourly).toBeGreaterThan(rule.minimumWage.nonFullTimeHourly);
+    expect(r.rightsScore).toBeGreaterThanOrEqual(0);
+    expect(r.rightsScore).toBeLessThanOrEqual(100);
+    expect(r.rightsFlags.length).toBeGreaterThan(0);
+    expect(['recommended', 'viable', 'risky']).toContain(r.recommendation);
+    expect(r.keyInsights.length).toBeGreaterThan(0);
+  });
+
+  /** 参保场景：已参保 */
+  it('runScenario: 已参保方案净收入降低但权益评分提高', () => {
+    const plain = unwrap(service.runScenario({ id: 'current', name: '当前方案', work, costs, personal }));
+    const insured = unwrap(service.runScenario({
+      id: 'ins', name: '已参保', work, costs, personal: { ...personal, hasSocialInsurance: true }
+    }));
+    expect(insured.netMonthly).toBeLessThan(plain.netMonthly);
+    expect(insured.rightsScore).toBeGreaterThan(plain.rightsScore);
+    expect(insured.benefit.totalMonthly).toBeGreaterThan(0);
+  });
+
+  /** 产品伦理不变式：未参保方案不得被标为 recommended */
+  it('runScenario: 未参保方案评级不得高于 viable', () => {
+    const result = unwrap(service.runScenario({ id: 'current', name: '当前方案', work, costs, personal }));
+    expect(result.recommendation).not.toBe('recommended');
+    expect(result.rightsFlags.join()).toContain('社保');
+  });
+
+  /** 有效时薪不得低于当地非全日制小时最低工资 */
+  it('runScenario: 有效时薪不低于非全日制最低工资', () => {
+    const result = unwrap(service.runScenario({ id: 'current', name: '当前方案', work, costs, personal }));
+    expect(result.netHourly).toBeGreaterThan(rule.minimumWage.nonFullTimeHourly);
+  });
+
+  /** 多接5单提高净收入 */
+  it('runScenario: 多接5单提高净收入', () => {
+    const plain = unwrap(service.runScenario({ id: 'current', name: '当前方案', work, costs, personal }));
+    const more = unwrap(service.runScenario({
+      id: 'more', name: '多接5单', work: { ...work, dailyOrders: 40 }, costs, personal
+    }));
+    expect(more.netMonthly).toBeGreaterThan(plain.netMonthly);
+  });
+
+  /** 多跑2小时：峰时折算导致补贴占比下降，净收入不单调递增 */
+  it('runScenario: 多跑2小时峰时折算生效', () => {
+    const short = unwrap(service.runScenario({ id: 's', name: '8小时', work: { ...work, dailyHours: 8 }, costs, personal }));
+    const long = unwrap(service.runScenario({ id: 'l', name: '12小时', work: { ...work, dailyHours: 12 }, costs, personal }));
+    // 8h → 占比 6/8=75%；12h → 占比 6/12=50%，后者峰时补贴更低
+    expect(long.income.subsidyPay).toBeLessThan(short.income.subsidyPay);
+  });
+
+  /** 评分始终落在0-100 */
+  it('runScenario: 极端参数下评分在0-100区间', () => {
+    const extreme = unwrap(service.runScenario({
+      id: 'x', name: '极端', work: { ...work, dailyHours: 14, workDaysMonth: 31 }, costs, personal
+    }));
+    expect(extreme.rightsScore).toBeGreaterThanOrEqual(0);
+    expect(extreme.rightsScore).toBeLessThanOrEqual(100);
+  });
+
+  /** 年度与月度净额闭合 */
+  it('runScenario: netAnnual 与 netMonthly×12 差在 0.1 元内', () => {
+    for (const orders of [20, 35, 47, 60]) {
+      const result = unwrap(service.runScenario({ id: 'x', name: 'x', work: { ...work, dailyOrders: orders }, costs, personal }));
+      expect(Math.abs(result.netAnnual - result.netMonthly * 12)).toBeLessThan(0.1);
+    }
+  });
+
+  /** compare 选出净收入最高的方案 */
+  it('compare: 选出净收入最高方案并生成排序与摘要', () => {
+    const scenarios = [
+      { id: 'a', name: 'A', work, costs, personal },
+      { id: 'b', name: 'B', work: { ...work, dailyOrders: 40 }, costs, personal },
+      { id: 'c', name: 'C', work: { ...work, dailyOrders: 20 }, costs, personal },
+    ];
+    const result = service.compare({ scenarios });
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) return;
+    const cmp = result.value;
+    expect(cmp.scenarios.length).toBe(3);
+    expect(cmp.best).not.toBeNull();
+    expect(cmp.ranking.length).toBe(3);
+    expect(cmp.ranking[0].netAnnual).toBeGreaterThanOrEqual(cmp.ranking[1].netAnnual);
+    expect(cmp.ranking[1].netAnnual).toBeGreaterThanOrEqual(cmp.ranking[2].netAnnual);
+    expect(cmp.summary).toContain(cmp.best!.name);
+    expect(cmp.summary).toContain('年净收入');
+    expect(cmp.summary).toContain('权益评分');
+  });
+
+  /** compare: 空数组返回错误 */
+  it('compare: 空场景数组返回校验错误', () => {
+    const result = service.compare({ scenarios: [] });
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    expect(result.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  /** 输入校验：缺少必填字段 */
+  it('runScenario: 缺少 id/name 返回校验错误', () => {
+    const result = service.runScenario({ id: '', name: '', work, costs, personal });
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    expect(result.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  /** 输入校验：非法数值 */
+  it('runScenario: dailyHours<=0 返回校验错误', () => {
+    const result = service.runScenario({ id: 'x', name: 'x', work: { ...work, dailyHours: 0 }, costs, personal });
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    expect(result.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  /** 输入校验：年龄非法 */
+  it('runScenario: currentAge<16 返回校验错误', () => {
+    const result = service.runScenario({ id: 'x', name: 'x', work, costs, personal: { ...personal, currentAge: 15 } });
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    expect(result.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  /** 输入校验：退休年龄小于当前年龄 */
+  it('runScenario: expectedRetireAge <= currentAge 返回校验错误', () => {
+    const result = service.runScenario({ id: 'x', name: 'x', work, costs, personal: { ...personal, expectedRetireAge: 20 } });
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    expect(result.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  /** 构造函数校验：rule 为空抛出 */
+  it('constructor: 无 rule 抛出错误', () => {
+    expect(() => new ScenarioService(null as unknown as CityRule)).toThrow();
+  });
+});
