@@ -1,31 +1,102 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
+import { visualizer } from 'rollup-plugin-visualizer'
+
+// 生产环境启用压缩与分析
+const isProd = process.env.NODE_ENV === 'production'
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [
+    vue({
+      // 生产环境开启 template 编译优化
+      template: {
+        compilerOptions: {
+          hoistStatic: isProd,
+          cacheHandlers: isProd,
+        },
+      },
+    }),
+    // 打包体积分析：npm run build && npx serve dist && open http://localhost:4173/stats.html
+    isProd && visualizer({
+      filename: 'stats.html',
+      open: false,
+      gzipSize: true,
+      brotliSize: true,
+    }),
+  ].filter(Boolean),
+
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+
   server: {
     port: 3000,
     open: false,
     strictPort: true,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-    },
+    headers: { 'Access-Control-Allow-Origin': '*' },
   },
+
   preview: { port: 4173 },
+
   build: {
     outDir: 'dist',
     sourcemap: true,
-    chunkSizeWarningLimit: 700,
+    // 目标现代浏览器，启用更多现代语法压缩
+    target: 'es2022',
+    // CSS 代码分割：每个 async chunk 单独的 CSS 文件
+    cssCodeSplit: true,
+    // 模块预加载指令
+    modulePreload: { polyfill: false },
+    // 移除调试用 console/debugger（生产环境）
+    minify: 'esbuild',
+    // 将 chunkSizeWarningLimit 调大以避免误报，实际优化靠 manualChunks
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
+      // 外部化：大型三方库走 CDN（需在 index.html 手动加载）
+      // external: ['echarts', 'naive-ui', 'vue', 'vue-router', 'pinia'],
       output: {
-        manualChunks: {
-          echarts: ['echarts'],
-          naive: ['naive-ui'],
-          vue: ['vue', 'vue-router', 'pinia'],
+        // 稳定的哈希文件名，利于长期缓存
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: (info) => {
+          const name = info.name ?? 'asset'
+          const ext = name.split('.').pop()
+          if (/\.(png|jpe?g|gif|svg|webp|avif|woff2?)$/.test(name)) return `assets/img/[name]-[hash].${ext}`
+          if (/\.css$/.test(name)) return `assets/css/[name]-[hash].${ext}`
+          return `assets/[name]-[hash].${ext}`
+        },
+        // 细粒度手动分块（避免循环依赖：合并易循环的库为单块，依赖 tree-shaking）
+        manualChunks: (id) => {
+          // 1. Vue 生态
+          if (id.includes('node_modules/vue') || id.includes('node_modules/vue-router') || id.includes('node_modules/pinia')) {
+            return 'vendor-vue'
+          }
+          // 2. naive-ui：单块打包（避免循环依赖，依赖 tree-shaking 剔除未用代码）
+          if (id.includes('node_modules/naive-ui')) {
+            return 'naive-ui'
+          }
+          // 3. echarts：单块打包（避免循环依赖，依赖 tree-shaking）
+          if (id.includes('node_modules/echarts')) {
+            return 'echarts'
+          }
+          // 4. 其余 node_modules
+          if (id.includes('node_modules')) {
+            return 'vendor-other'
+          }
         },
       },
     },
+    // terser 进阶压缩（若 esbuild 不够用可切换）
+    // minify: 'terser',
+    // terserOptions: { compress: { passes: 2, unsafe_math: true }, format: { comments: false } },
+  },
+
+  // 启用 CSS 模块哈希（避免类名冲突，配合 scoped 已足够，保留为未来多页扩展）
+  css: { modules: { localsConvention: 'camelCaseOnly' } },
+
+  // 实验性：依赖预构建优化
+  optimizeDeps: {
+    include: ['vue', 'vue-router', 'pinia', 'naive-ui', 'echarts/core', 'echarts/charts', 'echarts/components'],
+    // 避免重复预构建
+    force: false,
   },
 })

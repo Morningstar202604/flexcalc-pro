@@ -10,39 +10,48 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch, nextTick, computed, shallowRef } from 'vue'
 import type { EChartsCoreOption, EChartsType } from 'echarts/core'
-import { use } from 'echarts/core'
-import { CanvasRenderer } from 'echarts/renderers'
-import { BarChart, LineChart, PieChart, ScatterChart, HeatmapChart } from 'echarts/charts'
-import {
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent,
-  GridComponent,
-  VisualMapComponent,
-  DatasetComponent,
-  ToolboxComponent,
-  DataZoomComponent,
-  DataZoomInsideComponent,
-  DataZoomSliderComponent
-} from 'echarts/components'
 
-// 仅注册实际使用的图表与组件（按需引入，显著减小包体积）
-use([
-  CanvasRenderer,
-  BarChart, LineChart, PieChart, ScatterChart, HeatmapChart,
-  TitleComponent, TooltipComponent, LegendComponent,
-  GridComponent, VisualMapComponent, DatasetComponent,
-  ToolboxComponent, DataZoomComponent, DataZoomInsideComponent, DataZoomSliderComponent
-])
+// 仅导入类型，所有实际模块改为懒加载，避免静态+动态导入警告
 
-// 惰性导入 echarts init 函数，避免打包时引入完整库
-let initCharts: typeof import('echarts/core').init | null = null
-async function getInit(): Promise<typeof import('echarts/core').init> {
-  if (!initCharts) {
-    const mod = await import('echarts/core')
-    initCharts = mod.init
+let initFn: typeof import('echarts/core').init | null = null
+let isRegistered = false
+
+async function ensureECharts(): Promise<typeof import('echarts/core').init> {
+  if (initFn) return initFn
+
+  const [{ init }, { use }, { CanvasRenderer }, { BarChart, LineChart, PieChart, ScatterChart, HeatmapChart }, {
+    TitleComponent,
+    TooltipComponent,
+    LegendComponent,
+    GridComponent,
+    VisualMapComponent,
+    DatasetComponent,
+    ToolboxComponent,
+    DataZoomComponent,
+    DataZoomInsideComponent,
+    DataZoomSliderComponent
+  }] = await Promise.all([
+    import('echarts/core'),
+    import('echarts/core'),
+    import('echarts/renderers'),
+    import('echarts/charts'),
+    import('echarts/components')
+  ])
+
+  // 仅在首次调用时注册组件
+  if (!isRegistered) {
+    use([
+      CanvasRenderer,
+      BarChart, LineChart, PieChart, ScatterChart, HeatmapChart,
+      TitleComponent, TooltipComponent, LegendComponent,
+      GridComponent, VisualMapComponent, DatasetComponent,
+      ToolboxComponent, DataZoomComponent, DataZoomInsideComponent, DataZoomSliderComponent
+    ])
+    isRegistered = true
   }
-  return initCharts
+
+  initFn = init
+  return initFn
 }
 
 const props = defineProps<{
@@ -59,7 +68,7 @@ let ro: ResizeObserver | null = null
 async function render() {
   if (!el.value || props.loading || el.value.clientWidth === 0) return
   if (!chart.value) {
-    const init = await getInit()
+    const init = await ensureECharts()
     chart.value = init(el.value, undefined, { renderer: 'canvas' })
   }
   chart.value.setOption(props.option, true)
