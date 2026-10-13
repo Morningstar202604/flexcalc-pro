@@ -20,11 +20,35 @@
 
 ```bash
 npm ci
-npm run dev      # http://localhost:3000
-npm test         # vitest，109 例
-npm run verify   # 引擎自检：净收入恒等式闭合
-npm run build    # vue-tsc --noEmit && vite build
+npm run dev          # http://localhost:3000（Web）
+npm run tauri:dev    # 桌面端（需 Rust 工具链）
+npm test             # vitest，334 例
+npm run verify       # 引擎自检：净收入恒等式闭合
+npm run build        # vue-tsc --noEmit && vite build
+npm run tauri:build  # 桌面端安装包
 ```
+
+## 代码分层
+
+```
+src/
+├── domain/          纯业务逻辑，零框架依赖，可独立单测
+│   ├── shared/      Brand 类型、Money/Rate 值对象、Result 统一错误处理
+│   ├── income/      收入与成本引擎（端口 + 纯函数 + 实现）
+│   ├── tax/         劳务报酬个税、个体户核定征收
+│   └── benefit/     社保缴费、退休测算
+├── application/     用例编排：ScenarioService / CompensationService / RightsService
+│                    全部返回 Result<T, AppError>，不向外抛异常
+├── infrastructure/  适配器：localStorage / IndexedDB / HTTP 规则加载 / 密钥 / 日志
+├── engine/          现有引擎（计算口径与 domain 层一致，暂未合并）
+├── stores/          Pinia 状态与参数持久化
+├── components/      UI 组件与面板
+└── views/           五个页面
+```
+
+分层原则：domain 不依赖 Vue/框架/网络；application 只做编排不含公式；
+infrastructure 承担全部 I/O 与副作用。**异步边界被隔离在 infrastructure**——
+领域层的规则提供端口保持同步，网络不确定性不泄漏进计算逻辑。
 
 ## AI 助手与你的 API Key
 
