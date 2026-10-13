@@ -94,22 +94,14 @@
 import { computed, ref } from 'vue'
 import { NCard, NTabs, NTabPane, NGrid, NGi, NTag, NSteps, NStep, NEmpty } from 'naive-ui'
 import { useMainStore } from '../stores/main'
+import { SOURCE_LABELS } from '../utils/sources'
 
 const store = useMainStore()
 const rule = computed(() => store.rule)
 const tab = ref('national')
 
-const FIELD_LABELS: Record<string, string> = {
-  pension: '养老保险缴费基数上下限',
-  pensionRate: '养老保险缴费比例',
-  medical: '医疗保险缴费规则',
-  medicalBase: '医疗保险缴费基数上下限',
-  tax: '劳务报酬累计预扣',
-  taxPlatform: '平台涉税信息报送规定',
-  income: '平台接单计价规则',
-  minimumWage: '最低工资标准',
-  retirement: '养老金计发公式与假设',
-}
+// 与面板上的「依据」chip 共用一份映射，避免两处漂移
+const FIELD_LABELS = SOURCE_LABELS
 
 type Status = '已施行' | '试点扩围' | '待核实' | '企业披露'
 const statusType = (s: Status) => s === '已施行' ? 'success' : s === '待核实' ? 'error' : 'warning'

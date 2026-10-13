@@ -140,7 +140,7 @@
       </div>
 
       <div v-if="medicalTiers.length > 0" class="ps-item">
-        <div class="ps-label">医保档次</div>
+        <div class="ps-label">医保档次 <SourceTag source-key="medical" /></div>
         <n-select
           :value="store.personal.medicalTierId || defaultTierId"
           :options="medicalTierOptions"
@@ -152,7 +152,7 @@
 
       <template v-if="store.personal.hasSocialInsurance">
         <div class="ps-item">
-          <div class="ps-label">养老缴费基数 <b>¥{{ store.personal.pensionBase ?? autoPensionBase }}</b></div>
+          <div class="ps-label">养老缴费基数 <SourceTag source-key="pension" /> <b>¥{{ store.personal.pensionBase ?? autoPensionBase }}</b></div>
           <n-slider
             :value="store.personal.pensionBase ?? autoPensionBase"
             :min="pensionBaseMin"
@@ -167,7 +167,7 @@
         </div>
 
         <div class="ps-item">
-          <div class="ps-label">医保缴费基数 <b>¥{{ store.personal.medicalBase ?? autoMedicalBase }}</b></div>
+          <div class="ps-label">医保缴费基数 <SourceTag source-key="medical" /> <b>¥{{ store.personal.medicalBase ?? autoMedicalBase }}</b></div>
           <n-slider
             :value="store.personal.medicalBase ?? autoMedicalBase"
             :min="medicalBaseMin"
@@ -198,6 +198,7 @@
 import { computed } from 'vue'
 import { NSlider, NRadioGroup, NRadioButton, NSwitch, NDivider, NTag, NSelect, NButton } from 'naive-ui'
 import { useMainStore, CITIES } from '../stores/main'
+import SourceTag from './SourceTag.vue'
 
 const store = useMainStore()
 const cityOptions = CITIES

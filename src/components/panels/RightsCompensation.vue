@@ -83,7 +83,7 @@
             <div class="form-item">
               <label>本人月平均工资 (元)</label>
               <n-input-number v-model:value="form.injury.income" :min="0" :step="500" style="width:100%" @update:value="calc()" />
-              <p class="form-note">按缴费工资口径，低于全省社平60%或高于300%时自动封顶保底（区间 ¥{{ wageBand().floor.toLocaleString() }} – ¥{{ wageBand().ceil.toLocaleString() }}）</p>
+              <p class="form-note">按缴费工资口径，低于全省社平60%或高于300%时自动封顶保底（区间 ¥{{ wageBand().floor.toLocaleString() }} – ¥{{ wageBand().ceil.toLocaleString() }}）<SourceTag source-key="pension" /></p>
             </div>
             <div class="form-item">
               <label>住院伙食补助 元/天（当地标准，0=不计）</label>
@@ -161,7 +161,7 @@
             <div class="form-item">
               <label>小时工资基数 (元/h)</label>
               <n-input-number v-model:value="form.overwork.hourlyBase" :min="0" :step="5" style="width:100%" @update:value="calc()" />
-              <p class="form-note">不得低于非全日制小时最低工资 ¥{{ store.rule?.minimumWage.nonFullTimeHourly ?? '—' }}/h</p>
+              <p class="form-note">不得低于非全日制小时最低工资 ¥{{ store.rule?.minimumWage.nonFullTimeHourly ?? '—' }}/h <SourceTag source-key="minimumWage" /></p>
             </div>
             <div class="form-item">
               <label>工作日延时小时/月</label>
@@ -268,6 +268,7 @@
 import { ref, reactive, computed, inject, watch, type Ref } from 'vue'
 import { NCard, NAlert, NInputNumber, NSelect, NSlider, NSwitch, NButton, NTable, NGrid, NGi, NDivider, NSteps, NStep, NTooltip, NTag, useMessage } from 'naive-ui'
 import { useMainStore } from '../../stores/main'
+import SourceTag from '../SourceTag.vue'
 import type { CompensationItem, CompensationLegalRef, CompensationResult } from '../../types'
 
 const message = useMessage()

@@ -5,7 +5,7 @@
         以当前年龄 {{ store.personal.currentAge }} 岁起，测算不同缴费档次下的累计养老金。
         职工养老金 = 基础养老金 + 个人账户养老金。灵活就业者需自缴全部（含统筹部分）。
         年龄可在左侧参数栏「税务与社保」中调整。计发基数取本城口径
-        （<b>{{ (store.rule?.retirement.benefitBaseMonthly ?? 0).toLocaleString() }}</b> 元/月），账户收益率
+        （<b>{{ (store.rule?.retirement.benefitBaseMonthly ?? 0).toLocaleString() }}</b> 元/月）<SourceTag source-key="retirement" />，账户收益率
         {{ assumedReturnPct }}% 为假设值，实际由人社部门核算。
       </p>
     </n-card>
@@ -83,6 +83,7 @@ import { useMainStore } from '../../stores/main'
 import { BenefitEngine } from '../../engine/BenefitEngine'
 import { axisX, axisY, GRID, legend, C } from '../../utils/chart'
 import ChartBox from '../ChartBox.vue'
+import SourceTag from '../SourceTag.vue'
 
 const store = useMainStore()
 const engine = computed(() => store.rule ? new BenefitEngine(store.rule.benefit, store.rule.retirement) : null)

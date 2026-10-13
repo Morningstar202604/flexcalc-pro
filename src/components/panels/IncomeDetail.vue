@@ -8,7 +8,7 @@
             <div class="d-row"><span>距离加价 ({{ s.work.dailyOrders }}单 × {{ s.work.avgDistance }}km × ¥{{ rule?.income.distanceRate }} × {{ s.work.workDaysMonth }}天)</span><b>¥{{ s.income.distancePay.toLocaleString() }}</b></div>
             <div class="d-row"><span>时段补贴 (高峰 × {{ rule?.income.timeSubsidy.multiplier }})</span><b>¥{{ s.income.subsidyPay.toLocaleString() }}</b></div>
             <div v-if="s.income.bonusPay > 0" class="d-row"><span>冲单奖励</span><b>¥{{ s.income.bonusPay }}</b></div>
-            <div class="d-row total"><span>月总收入</span><b>¥{{ s.income.grossIncome.toLocaleString() }}</b></div>
+            <div class="d-row total"><span>月总收入 <SourceTag source-key="income" /></span><b>¥{{ s.income.grossIncome.toLocaleString() }}</b></div>
             <div class="d-row"><span>日均收入</span><b>¥{{ safeDiv(s.income.grossIncome, s.work.workDaysMonth, 0) }}</b></div>
             <div class="d-row"><span>时均收入</span><b>¥{{ safeDiv(s.income.grossIncome, s.work.dailyHours * s.work.workDaysMonth, 1) }}/h</b></div>
           </div>
@@ -58,6 +58,7 @@ import { NCard, NGrid, NGi } from 'naive-ui'
 import { useMainStore } from '../../stores/main'
 import { axisX, axisY, GRID, C } from '../../utils/chart'
 import ChartBox from '../ChartBox.vue'
+import SourceTag from '../SourceTag.vue'
 
 const store = useMainStore()
 const s = computed(() => store.scenarios[0])

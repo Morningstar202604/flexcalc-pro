@@ -11,12 +11,12 @@
       <n-gi>
         <n-card title="劳务报酬（当前）" class="card">
           <div class="tax-block">
-            <div class="t-row"><span>年收入总额</span><b>¥{{ labor.toLocaleString() }}</b></div>
+            <div class="t-row"><span>年收入总额 <SourceTag source-key="taxPlatform" /></span><b>¥{{ labor.toLocaleString() }}</b></div>
             <div class="t-row"><span>费用减除 (20%)</span><span>-{{ (labor * 0.2).toFixed(0) }}</span></div>
             <div class="t-row"><span>基本减除</span><span>-60,000</span></div>
             <div class="t-row"><span>专项附加扣除</span><span>-{{ (store.personal.specialDeductionMonth * 12).toLocaleString() }}</span></div>
             <div class="t-row"><span>应纳税所得额</span><b>¥{{ taxableLabor.toLocaleString() }}</b></div>
-            <div class="t-row danger"><span>年度个人所得税</span><b>¥{{ laborTax.toLocaleString() }}</b></div>
+            <div class="t-row danger"><span>年度个人所得税 <SourceTag source-key="tax" /></span><b>¥{{ laborTax.toLocaleString() }}</b></div>
             <div class="t-row danger"><span>实际税率</span><b>{{ laborRate }}%</b></div>
             <div class="t-row total"><span>全年税后收入</span><b class="ok">¥{{ afterLabor.toLocaleString() }}</b></div>
           </div>
@@ -30,11 +30,11 @@
             <div class="t-row" style="margin-top:6px"><span><b>一、增值税</b></span><span></span></div>
             <div class="t-row"><span>征收率（小规模减按）</span><b>{{ vatRatePct }}%</b></div>
             <div class="t-row"><span>月均是否达起征点</span><span>{{ aboveVatThreshold ? '是' : '否（免征）' }}</span></div>
-            <div class="t-row"><span>年度增值税</span><b>¥{{ vatTax.toLocaleString() }}</b></div>
+            <div class="t-row"><span>年度增值税 <SourceTag source-key="soleVat" /></span><b>¥{{ vatTax.toLocaleString() }}</b></div>
             <div class="t-row note"><span>增值税起征点：月 {{ soleRule?.vatThresholdMonthly?.toLocaleString() ?? '—' }} 元；未达则免征</span><span></span></div>
 
             <div class="t-row" style="margin-top:6px"><span><b>二、经营所得个人所得税</b></span><span></span></div>
-            <div class="t-row"><span>核定行业所得率</span><b>{{ itrRatePct }}%<span v-if="!itrVerified" class="warn-tag">占位值</span></b></div>
+            <div class="t-row"><span>核定行业所得率 <SourceTag source-key="soleItr" /></span><b>{{ itrRatePct }}%<span v-if="!itrVerified" class="warn-tag">占位值</span></b></div>
             <template v-if="itrVerified">
               <div class="t-row"><span>核定应纳税所得额</span><b>¥{{ soleTaxable.toLocaleString() }}</b></div>
               <div class="t-row danger"><span>年度个人所得税</span><b>¥{{ itrTax.toLocaleString() }}</b></div>
@@ -90,6 +90,7 @@ import { TaxEngine, type TaxEngineConfig } from '../../engine/TaxEngine'
 import { round2 } from '../../utils/number'
 import { axisX, axisY, GRID, legend, C } from '../../utils/chart'
 import ChartBox from '../ChartBox.vue'
+import SourceTag from '../SourceTag.vue'
 
 const store = useMainStore()
 
