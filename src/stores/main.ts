@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import type { CityRule, WorkParams, CostParams, PersonalParams, ScenarioResult, CompensationResult } from '../types'
 import { ScenarioService } from '../application/scenario/ScenarioService'
+import type { ScenarioInput } from '../application/scenario/ScenarioService'
 import { hydrateParams } from '../utils/params'
 
 export const CITIES = [
@@ -154,29 +155,29 @@ export const useMainStore = defineStore('main', () => {
     return loadRule(keepCity)
   }
 
-  const scenarios = computed<ScenarioResult[]>(() => {
-    const eng = engine.value
-    if (!eng) return []
-    const list = [
+  // 场景输入的单一真相：scenarios 与 comparison 都基于它，避免 compare() 用 personal.value
+  // 覆盖各场景自己的 personal，导致「缴齐社保」被按未参保重算（卡片与图表数值打架）
+  const scenarioInputs = computed<ScenarioInput[]>(() => {
+    const list: ScenarioInput[] = [
       { id: 'current', name: '当前方案', work: work.value, costs: costs.value, personal: personal.value },
       { id: 'more_hours', name: '多跑2小时', work: { ...work.value, dailyHours: Math.min(work.value.dailyHours + 2, 14) }, costs: costs.value, personal: personal.value },
       { id: 'more_orders', name: '多接5单', work: { ...work.value, dailyOrders: work.value.dailyOrders + 5 }, costs: costs.value, personal: personal.value },
     ]
-    const results = list
+    if (!personal.value.hasSocialInsurance) {
+      list.push({ id: 'with_insurance', name: '缴齐社保', work: work.value, costs: costs.value, personal: { ...personal.value, hasSocialInsurance: true } })
+    }
+    for (const p of customPlans.value) {
+      list.push({ id: p.id, name: p.name, work: p.work, costs: p.costs, personal: personal.value })
+    }
+    return list
+  })
+
+  const scenarios = computed<ScenarioResult[]>(() => {
+    const eng = engine.value
+    if (!eng) return []
+    return scenarioInputs.value
       .map(s => unwrap(eng.runScenario(s)))
       .filter((s): s is ScenarioResult => s !== null)
-
-    if (!personal.value.hasSocialInsurance) {
-      const insured = unwrap(eng.runScenario({ id: 'with_insurance', name: '缴齐社保', work: work.value, costs: costs.value, personal: { ...personal.value, hasSocialInsurance: true } }))
-      if (insured) results.push(insured)
-    }
-
-    for (const p of customPlans.value) {
-      const custom = unwrap(eng.runScenario({ id: p.id, name: p.name, work: p.work, costs: p.costs, personal: personal.value }))
-      if (custom) results.push(custom)
-    }
-
-    return results
   })
 
   function addScenario(name: string, w: WorkParams, c: CostParams) {
@@ -189,11 +190,9 @@ export const useMainStore = defineStore('main', () => {
 
   const comparison = computed(() => {
     const eng = engine.value
-    const list = scenarios.value
+    const list = scenarioInputs.value
     if (!eng || list.length === 0) return null
-    return unwrap(eng.compare({
-      scenarios: list.map(s => ({ id: s.id, name: s.name, work: s.work, costs: s.costs, personal: personal.value })),
-    }))
+    return unwrap(eng.compare({ scenarios: list }))
   })
 
   return { rule, loading, loadError, paramsRestored, work, costs, personal, customPlans, compensation, setCompensation, scenarios, comparison, loadRule, setCity, resetParams, addScenario, removeScenario }
