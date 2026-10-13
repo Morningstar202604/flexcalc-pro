@@ -48,15 +48,16 @@ export class BenefitEngine {
   }
 
   /**
-   * 计发基数与缴费指数都是外部输入，缺省时回落到广州口径 9493 / 0.6；
-   * 调用方应显式传本城 rule.retirement，避免跨城串值。
+   * 计发基数、缴费指数、假想收益率都是外部输入，一律从本城规则文件读取，
+   * 不在代码里写死字面量——否则调用方漏传时界面显示的收益率与实际计算值会不一致
+   * （规则文件当前为 3%，而旧默认值写的是 5%）。无规则时回落广州口径 9493 / 0.6 / 3%。
    */
   projectRetirement(
     currentAge: number,
     retireAge: number,
     monthlyContribution: number,
     yearsContributed: number,
-    annualReturn = 0.05,
+    annualReturn = this.retirement?.assumedAnnualReturn ?? 0.03,
     paymentIndex = this.retirement?.paymentIndex ?? 0.6,
   ) {
     const benefitBase = this.retirement?.benefitBaseMonthly ?? 9493

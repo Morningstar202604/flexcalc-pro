@@ -25,6 +25,8 @@ export function clamp(v: unknown, min: number, max: number, fallback: number): n
 
 /** 计算毛收入分项 */
 export function calcIncome(rule: IncomeRule, params: WorkParams): IncomeBreakdown {
+  // 允许 0 天：语义上「本月工作 0 天」收入即为 0，不应被夹取成 1 天凭空计钱。
+  // dailyBase 由 safeDiv 兜底，不会出现 0/0 = NaN。
   const days = Math.round(clamp(params.workDaysMonth, 0, 31, 1))
   const orders = clamp(params.dailyOrders, 0, 200, 0)
   const dist = clamp(params.avgDistance, 0, 50, 0)
