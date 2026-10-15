@@ -28,57 +28,15 @@ jobs:
       - name: Build
         run: npm run build
 
-      # 规则文件是产品主张的一部分，缺出处或 verified 误标都要挡住
+      # 规则文件是产品主张的一部分，缺出处或 verified 误标都要挡住。
+      # 校验逻辑放在 scripts/check-rules.mjs：此前内联在本文件里，
+      # 脚本中的「冒号+空格」被 YAML 当作映射键值，导致 workflow 语法错误、
+      # CI 从未真正启动。抽出后 workflow 只调用，本地也能跑同一条门禁。
       - name: Rule files are valid JSON with provenance
-        run: node -e "
-          const fs=require('fs');
-          for (const f of fs.readdirSync('public/rules')) {
-            const r=JSON.parse(fs.readFileSync('public/rules/'+f,'utf8'));
-            const srcs=Object.entries(r.sources);
-            if (srcs.length < 6) throw new Error(f+' 来源条目不足');
-            for (const [k,s] of srcs) {
-              if (!['official','derived','unverified'].includes(s.confidence)) throw new Error(f+' '+k+' 置信度非法');
-              if (s.confidence==='official' && !(s.docNo||s.url)) throw new Error(f+' '+k+' official 但无文号/链接');
-            }
-            const allOfficial = srcs.every(([,s])=>s.confidence==='official');
-            if (r.verified && !allOfficial) throw new Error(f+' verified=true 但存在非 official 来源');
+        run: node scripts/check-rules.mjs
 
-            // 医保分档是外部数据，分档费率必须能回溯到 medical 档的官方来源
-            const tiers = r.benefit.medicalTiers;
-            if (tiers) {
-              if (!r.sources.medical) throw new Error(f+' 有 medicalTiers 但缺 medical 来源');
-              if (r.sources.medical.confidence !== 'official')
-                throw new Error(f+' medicalTiers 存在但 medical 来源非 official');
-              const ids = tiers.map(t=>t.id);
-              if (new Set(ids).size !== ids.length) throw new Error(f+' medicalTiers 存在重复 id');
-              const rates = tiers.map(t=>t.rate);
-              if (new Set(rates).size !== rates.length) throw new Error(f+' medicalTiers 存在重复费率');
-              for (const t of tiers) {
-                if (!(t.rate > 0 && t.rate < 0.2)) throw new Error(f+' 档次 '+t.id+' 费率越界: '+t.rate);
-                if (!t.note) throw new Error(f+' 档次 '+t.id+' 缺口径说明');
-              }
-              if (!rates.includes(r.benefit.medical.rate))
-                throw new Error(f+' 默认档费率 '+r.benefit.medical.rate+' 不在任何 medicalTiers 中');
-            }
-
-            // 退休计发基数是外部数据，不得在代码或数据里被静默改成写死值
-            if (!(r.retirement.benefitBaseMonthly > 0)) throw new Error(f+' 计发基数非法');
-            if (!r.sources.retirement) throw new Error(f+' 缺 retirement 来源');
-
-            // 个体户税负：增值税与个税是两个税种，必须分列且各有官方来源。
-            // 历史上曾把增值税的 1% 优惠税率当作个税核定征收率，导致税负被严重低估。
-            const sp = r.soleProprietorship;
-            if (!sp) throw new Error(f+' 缺 soleProprietorship 配置');
-            if (!(sp.vatRate > 0 && sp.vatRate < 0.1)) throw new Error(f+' 增值税税率越界: '+sp.vatRate);
-            if (!(sp.vatThresholdMonthly > 0)) throw new Error(f+' 增值税起征点非法');
-            if (!(sp.itrIncomeRate > 0 && sp.itrIncomeRate < 1)) throw new Error(f+' 个税所得率越界: '+sp.itrIncomeRate);
-            if (!r.sources.soleVat || !r.sources.soleVat.docNo) throw new Error(f+' 个体户增值税缺官方来源');
-            if (!r.sources.soleItr) throw new Error(f+' 个体户个税缺来源');
-            // 旧的 tax.soleRate 已废止，留着就会被误当成个税税率
-            if (r.tax.soleRate !== undefined) throw new Error(f+' tax.soleRate 已废止，请改用 soleProprietorship.itrIncomeRate');
-          }
-          console.log('rule provenance OK');
-        "
+      - name: Engine self-check (net income identity)
+        run: npm run verify
 
       - uses: actions/upload-artifact@v4
         with:

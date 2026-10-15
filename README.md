@@ -1,8 +1,36 @@
 # 灵算 Pro — 灵活就业者收入精算与权益决策平台
 
+[![CI](https://github.com/badhope/flexcalc-pro/actions/workflows/ci.yml/badge.svg)](https://github.com/badhope/flexcalc-pro/actions/workflows/ci.yml)
+[![tests](https://img.shields.io/badge/vitest-852%20passed-brightgreen.svg)](#测试覆盖什么)
+[![cities](https://img.shields.io/badge/cities-15-4a7c8c.svg)](#范围与设计主张)
+[![telemetry](https://img.shields.io/badge/telemetry-none-4a7c8c.svg)](#数据在哪里来自哪里)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 面向外卖骑手等灵活就业群体的收入 / 税务 / 社保 / 权益测算工具。纯前端，所有参数与测算结果默认只留在本机浏览器。
 
 **唯一例外**：若你在「AI 助手」设置中主动启用并填入 API Key，则城市、工时、接单量、收入、成本、净收入、时薪、权益评分与最近 6 条对话会发送至**你自己填写的**第三方模型接口。本应用自身没有后端，不另存这些数据；不启用 AI 即完全离线。
+
+## 截图
+
+**总览** — 净收入、有效时薪与权益评分。当测算依赖的字段尚未回溯到官方来源时，顶部会明确标出「假设测算」并列出具体字段，不做确定性结论。
+
+![总览](docs/screenshots/01-dashboard.png)
+
+**方案对比** — 按当前参数生成变体方案横向对比；占位数据下「最优」降级为「假设最优」。
+
+![方案对比](docs/screenshots/02-scenario.png)
+
+**税务与养老** — 劳务报酬与个体工商户两套税种分列；未核到现行核定所得率时不替用户估算节税金额。
+
+![税务与养老](docs/screenshots/03-planning.png)
+
+**权益护航** — 补偿金额按「可直接主张」与「条件项」分列；首屏示例值明确标注，避免被当成用户主张金额。
+
+![权益护航](docs/screenshots/04-rights.png)
+
+**政策百科** — 15 城参数逐条溯源，每条带文号、原文链接、生效日与核取日。
+
+![政策百科](docs/screenshots/05-policy.png)
 
 ## 范围与设计主张
 
