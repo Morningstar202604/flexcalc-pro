@@ -375,37 +375,37 @@ const evidenceList = [
 </script>
 
 <style scoped>
-.card { background: #ffffff !important; border: 1px solid #e2e8f0 !important; }
-.desc { color: #64748b; font-size: 13px; margin-bottom: 0; }
+.card { background: var(--color-bg-primary) !important; border: 1px solid var(--color-border-primary) !important; }
+.desc { color: var(--color-text-secondary); font-size: 13px; margin-bottom: 0; }
 
 .quick-nav {
   display: flex; gap: 0; margin-top: 12px;
-  background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px;
+  background: var(--color-bg-primary); border: 1px solid var(--color-border-primary); border-radius: 6px;
   overflow-x: auto;
 }
 .qn-item {
   display: flex; align-items: center; gap: 6px;
   padding: 10px 16px; cursor: pointer;
-  border-right: 1px solid #e2e8f0; white-space: nowrap;
+  border-right: 1px solid var(--color-border-primary); white-space: nowrap;
   transition: background 0.15s;
 }
 .qn-item:last-child { border-right: none; }
-.qn-item:hover { background: #f8fafc; }
-.qn-item.active { background: #0d9488; color: #ffffff; }
+.qn-item:hover { background: var(--color-bg-secondary); }
+.qn-item.active { background: var(--color-primary-500); color: var(--color-text-inverse); }
 .qn-num {
   width: 20px; height: 20px; border-radius: 50%;
-  background: #f1f5f9; color: #475569;
+  background: var(--color-bg-tertiary); color: var(--color-text-secondary);
   display: flex; align-items: center; justify-content: center;
   font-size: 11px; font-weight: 700;
 }
-.qn-item.active .qn-num { background: rgba(255,255,255,0.25); color: #ffffff; }
+.qn-item.active .qn-num { background: rgba(255,255,255,0.25); color: var(--color-text-inverse); }
 .qn-name { font-size: 13px; font-weight: 500; }
 
 .step-body { display: flex; flex-direction: column; gap: 10px; }
-.step-intro { color: #475569; font-size: 13px; line-height: 1.6; margin-bottom: 0; }
+.step-intro { color: var(--color-text-secondary); font-size: 13px; line-height: 1.6; margin-bottom: 0; }
 
 .checklist-section h4 {
-  font-size: 13px; font-weight: 600; color: #0f172a;
+  font-size: 13px; font-weight: 600; color: var(--color-text-primary);
   margin-bottom: 6px;
 }
 
@@ -414,11 +414,11 @@ const evidenceList = [
 }
 .checklist label {
   display: flex; align-items: flex-start; gap: 6px;
-  font-size: 12px; color: #475569; cursor: pointer;
+  font-size: 12px; color: var(--color-text-secondary); cursor: pointer;
   padding: 3px 0;
 }
 .checklist input[type="checkbox"] {
-  margin-top: 2px; width: 14px; height: 14px; accent-color: #0d9488;
+  margin-top: 2px; width: 14px; height: 14px; accent-color: var(--color-text-brand);
 }
 
 .tips {
@@ -426,52 +426,52 @@ const evidenceList = [
   margin: 0;
 }
 .tips li {
-  font-size: 12px; color: #64748b; line-height: 1.6; margin-bottom: 3px;
+  font-size: 12px; color: var(--color-text-secondary); line-height: 1.6; margin-bottom: 3px;
 }
 
 .template-box {
-  border: 1px solid #e2e8f0; border-radius: 4px;
+  border: 1px solid var(--color-border-primary); border-radius: 4px;
   overflow: hidden;
 }
 .template-box + .template-box { margin-top: 6px; }
 .template-title {
-  padding: 6px 12px; background: #f8fafc;
-  font-size: 11px; font-weight: 600; color: #0d9488;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 6px 12px; background: var(--color-bg-secondary);
+  font-size: 11px; font-weight: 600; color: var(--color-text-brand);
+  border-bottom: 1px solid var(--color-border-primary);
 }
 .template-content {
-  padding: 10px 12px; font-size: 12px; color: #475569;
+  padding: 10px 12px; font-size: 12px; color: var(--color-text-secondary);
   line-height: 1.7;
 }
 
 .agency-card {
-  border: 1px solid #e2e8f0; border-radius: 4px;
+  border: 1px solid var(--color-border-primary); border-radius: 4px;
   padding: 12px;
 }
 .agency-card h4 {
-  font-size: 13px; font-weight: 600; color: #0f172a;
+  font-size: 13px; font-weight: 600; color: var(--color-text-primary);
   margin-bottom: 6px; padding-bottom: 4px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--color-border-primary);
 }
 .agency-detail {
   display: flex; flex-direction: column; gap: 2px;
 }
 .agency-detail p {
-  font-size: 12px; color: #64748b; margin: 0;
+  font-size: 12px; color: var(--color-text-secondary); margin: 0;
 }
 
 .contact-list {
   display: flex; flex-direction: column; gap: 8px;
 }
 .contact-item {
-  padding: 6px 0; border-bottom: 1px solid #f1f5f9;
+  padding: 6px 0; border-bottom: 1px solid var(--color-bg-tertiary);
 }
 .contact-item:last-child { border-bottom: none; }
 .ci-name {
-  font-size: 13px; font-weight: 600; color: #0d9488;
+  font-size: 13px; font-weight: 600; color: var(--color-text-brand);
 }
 .ci-desc {
-  font-size: 11px; color: #94a3b8; margin-top: 2px;
+  font-size: 11px; color: var(--color-text-tertiary); margin-top: 2px;
 }
 
 .deadline-list {
@@ -484,10 +484,10 @@ const evidenceList = [
 .dl-time {
   width: 32px; text-align: center;
   font-size: 11px; font-weight: 700;
-  color: #dc2626; background: #fef2f2;
+  color: var(--color-text-danger); background: var(--color-danger-50);
   border-radius: 3px; padding: 2px 4px;
 }
 .dl-text {
-  font-size: 12px; color: #64748b;
+  font-size: 12px; color: var(--color-text-secondary);
 }
 </style>

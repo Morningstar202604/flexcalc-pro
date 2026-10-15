@@ -98,6 +98,7 @@
     "nonFullTimeHourly": 25.4
   },
   "retirement": {
+    "personalAccountRate": 0.08,
     "benefitBaseMonthly": 11293,
     "paymentIndex": 0.6,
     "assumedAnnualReturn": 0.03
@@ -108,11 +109,36 @@
     "itrIncomeRate": 0.1,
     "itrDeductionMonthly": 5000,
     "bizTaxTable": [
-      { "min": 0, "max": 30000, "rate": 0.05, "deduction": 0 },
-      { "min": 30000, "max": 90000, "rate": 0.1, "deduction": 1500 },
-      { "min": 90000, "max": 300000, "rate": 0.2, "deduction": 10500 },
-      { "min": 300000, "max": 500000, "rate": 0.3, "deduction": 40500 },
-      { "min": 500000, "max": 999999999, "rate": 0.35, "deduction": 65500 }
+      {
+        "min": 0,
+        "max": 30000,
+        "rate": 0.05,
+        "deduction": 0
+      },
+      {
+        "min": 30000,
+        "max": 90000,
+        "rate": 0.1,
+        "deduction": 1500
+      },
+      {
+        "min": 90000,
+        "max": 300000,
+        "rate": 0.2,
+        "deduction": 10500
+      },
+      {
+        "min": 300000,
+        "max": 500000,
+        "rate": 0.3,
+        "deduction": 40500
+      },
+      {
+        "min": 500000,
+        "max": 999999999,
+        "rate": 0.35,
+        "deduction": 65500
+      }
     ]
   },
   "sources": {
@@ -131,7 +157,8 @@
       "url": "https://hrss.sz.gov.cn/szsi/sbjxxgk/zcfggfxwj/zcfg/sbzs/content/post_12855003.html",
       "effectiveFrom": "2026-05-01",
       "retrievedAt": "2026-10-12",
-      "confidence": "official"
+      "confidence": "official",
+      "note": "深圳按广东省灵活就业人员参加企业职工基本养老保险办法执行：缴费比例 20%，其中 12% 记入统筹基金、8% 记入个人账户；基数在参保地（深圳）企业职保上下限范围内自选（粤人社规〔2026〕14号第七条、第六条）。"
     },
     "medical": {
       "title": "深圳市医疗保障局关于2026年度职工基本医疗保险和生育保险缴费基数与费率的提示",
@@ -192,7 +219,7 @@
       "effectiveFrom": "2025-01-01 至 2025-12-31 为 11293 元/月；2026 年办理退休人员沿用该标准",
       "retrievedAt": "2026-10-12",
       "confidence": "derived",
-      "note": "深圳企业职工养老保险独立核算，计发基数不与广东省内其他地市共用（广州、东莞等用 9493 元）。11293 元见于深圳市人社局公开答复与多家一致报道；2026 年正式基数尚未见规范性文件发布，当前按沿用上年标准处理，待正式文件公布后需回溯更新"
+      "note": "深圳企业职工养老保险独立核算，计发基数不与广东省内其他地市共用（广州、东莞等用 9493 元）。11293 元见于深圳市人社局公开答复与多家一致报道；2026 年正式基数尚未见规范性文件发布，当前按沿用上年标准处理，待正式文件公布后需回溯更新。计发月数按 国发〔2005〕38号附表随退休年龄查表（40/45/50/55/60/65/70 岁 → 233/216/195/170/139/101/56），不再写死 139；投资收益率 3% 为自设假设，必须向用户标注"
     }
   }
 }

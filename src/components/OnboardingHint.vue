@@ -1,0 +1,114 @@
+<template>
+  <n-modal
+    v-if="visible"
+    :show="visible"
+    preset="card"
+    title="先看这里：这些数字是谁的？"
+    :style="{ width: 'min(620px, 94vw)' }"
+    :closable="true"
+    @update:show="(v: boolean) => !v && close()"
+  >
+    <div class="onb">
+      <p class="onb-lead">
+        页面上的收入、成本、社保数字，全部来自左侧参数栏的假设值——<strong>不是你的真实数据</strong>。
+        先花两分钟把下面三项换成你自己的情况，结论才有意义。
+      </p>
+
+      <ol class="onb-steps">
+        <li>
+          <b>日均工时 / 日均接单 / 月工作天</b>
+          <span>默认 {{ d.hours }}h、{{ d.orders }}单、{{ d.days }}天是常见全职强度。<strong>刚入行填低一些</strong>（新手期单量与效率都更低）。</span>
+        </li>
+        <li>
+          <b>车辆与成本</b>
+          <span>默认月支出约 ¥{{ d.cost }}（电动车的充电、维护、保险、折旧等）。租车的话把租金加进「维护费」。</span>
+        </li>
+        <li>
+          <b>税务与社保</b>
+          <span>默认<strong>未参保</strong>。参保会让净收入下降约 ¥{{ d.insurance }}，但医保断缴时住院费用要全额自付。</span>
+        </li>
+      </ol>
+
+      <n-alert type="info" :show-icon="true" style="margin-top: 4px">
+        <div><b>三步快速上手</b></div>
+        <div style="margin-top:4px">① 左侧把参数改成你的情况 → ② 看「总览」的净收入与<strong>有效时薪</strong>（和当地最低工资对比）→ ③ 去「方案对比 → 收支明细」看钱的去向。</div>
+      </n-alert>
+
+      <n-alert type="warning" :show-icon="true" style="margin-top: 8px">
+        <div><b>招聘广告上的数字先别信</b></div>
+        <div style="margin-top:4px">
+          去「方案对比 → 收支明细 → 广告口径校验」输入对方给的月收入，它会按本城计价反算出需要日均多少单、多少小时才能达到。
+        </div>
+      </n-alert>
+
+      <p class="onb-foot">
+        想先了解行业里的真实规则（押金、租车、合同、扣款），见「政策百科 → 民生手册 → 新人入门」。
+      </p>
+    </div>
+
+    <template #footer>
+      <div class="onb-actions">
+        <n-button text size="small" @click="close">不再提示</n-button>
+        <n-button type="primary" size="small" @click="close">开始调整参数</n-button>
+      </div>
+    </template>
+  </n-modal>
+</template>
+
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import { NModal, NButton, NAlert } from 'naive-ui'
+import { useMainStore } from '../stores/main'
+import { CITIES } from '../stores/main'
+
+const STORAGE_KEY = 'flexcalc_onboarding_v1'
+const store = useMainStore()
+
+function readSeen(): boolean {
+  try { return localStorage.getItem(STORAGE_KEY) === '1' } catch { return true }
+}
+
+const visible = ref(!readSeen())
+
+const d = computed(() => {
+  const c = store.costs
+  const cost = c.electricityCostMonth + c.maintenanceMonth + c.insuranceMonth
+    + c.phoneCostMonth + c.foodCostMonth + c.trafficFineMonth
+    + c.vehicleDepreciationMonth + c.otherCostMonth + c.fuelCostMonth
+  // 参保成本的正确口径：未参保时 totalMonthly 为 0，不能直接取它——
+  // 否则会显示「参保让净收入下降约 ¥0」，把"每月要掏一两千"说成不花钱。
+  const s0 = store.scenarios[0]
+  const insurance = Math.round(s0?.benefit.totalMonthly || ((s0?.benefit.pensionMonthly ?? 0) + (s0?.benefit.medicalMonthly ?? 0)))
+  return {
+    hours: store.work.dailyHours,
+    orders: store.work.dailyOrders,
+    days: store.work.workDaysMonth,
+    cost,
+    insurance,
+  }
+})
+
+function close() {
+  visible.value = false
+  try { localStorage.setItem(STORAGE_KEY, '1') } catch { /* 隐私模式下不持久化，只影响下次是否再弹 */ }
+}
+
+/** 城市数量用于说明「默认口径可切换」 */
+const cityCount = CITIES.length
+void cityCount
+</script>
+
+<style scoped>
+.onb { display: flex; flex-direction: column; gap: 10px; }
+.onb-lead { font-size: 13px; line-height: 1.7; color: var(--color-text-secondary); margin: 0; }
+.onb-lead strong { color: var(--color-text-primary); }
+
+.onb-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+.onb-steps li { font-size: 12px; line-height: 1.7; color: var(--color-text-secondary); }
+.onb-steps b { color: var(--color-text-primary); margin-right: 4px; }
+.onb-steps span { display: block; }
+.onb-steps span strong { color: var(--color-text-brand); }
+
+.onb-foot { font-size: 12px; color: var(--color-text-tertiary); margin: 0; }
+.onb-actions { display: flex; justify-content: space-between; align-items: center; }
+</style>

@@ -163,8 +163,14 @@ export class ScenarioService {
         flags.push('单一收入来源：平台政策变动即影响全部收入，无兜底')
         const rightsScore = Math.max(0, score)
 
-        // 保障缺失时封顶为 viable：否则净收入一高就出现"推荐你不参保"的反向激励
-        const incomeTier = netMonthly > 7000 ? 'recommended' : netMonthly > 4500 ? 'viable' : 'risky'
+        // 保障缺失时封顶为 viable：否则净收入一高就出现"推荐你不参保"的反向激励。
+        // 评级在「缴社保前」的收入能力上计算——社保是自己的保障储备，不是亏损，
+        // 不能因为参保把方案从 viable 拖成 risky（那是同一激励的下一层翻版）。
+        // 底线用本城最低工资（月）当锚，不写死 7000/4500 这类只匹配广州购买力的数字：
+        // 低于最低工资 = risky（不如去做最低工资的全职）；超过 2 倍才够 recommended。
+        const incomeCapacity = netMonthly + toYuan(benefitResult.value.totalMonthly)
+        const minWageFloor = this.rawRule.minimumWage.monthly
+        const incomeTier = incomeCapacity > minWageFloor * 2 ? 'recommended' : incomeCapacity > minWageFloor ? 'viable' : 'risky'
         const recommendation =
           !personal.hasSocialInsurance && incomeTier === 'recommended' ? 'viable' : incomeTier
 
@@ -287,8 +293,11 @@ export class ScenarioService {
     if (!Number.isFinite(work.dailyHours) || work.dailyHours <= 0) {
       return AppError.validation('work.dailyHours 必须为正数')
     }
-    if (!Number.isFinite(work.workDaysMonth) || work.workDaysMonth <= 0) {
-      return AppError.validation('work.workDaysMonth 必须为正数')
+    // 允许 0 天：与 domain/income/calculator 的口径一致（「本月工作 0 天」收入即为 0，
+    // 成本仍在，净收入为负是正确结果）。此处曾要求 >0，与域层注释直接矛盾，
+    // 会导致「0 天」在域层可算、经服务层却被拒——两层必须同口径。
+    if (!Number.isFinite(work.workDaysMonth) || work.workDaysMonth < 0) {
+      return AppError.validation('work.workDaysMonth 必须为非负数')
     }
     if (!Number.isFinite(work.dailyOrders) || work.dailyOrders < 0) {
       return AppError.validation('work.dailyOrders 必须为非负数')
@@ -324,10 +333,23 @@ export class ScenarioService {
       insights.push(
         `若以灵活就业参保（养老+医保），每月需自缴 ¥${(benefit.pensionMonthly + benefit.medicalMonthly).toLocaleString()}，净收入相应下降`,
       )
+      // 参保成本超过月净收入时点破：否则用户只看到"净收入下降"，实际是当月入不敷出
+      const insuranceCost = benefit.pensionMonthly + benefit.medicalMonthly
+      if (insuranceCost > netMonthly && netMonthly > 0) {
+        insights.push(`注意：参保月缴（¥${insuranceCost.toLocaleString()}）已超过当前月净收入，需靠其他收入或积蓄支撑；但断缴会损失缴费年限累计，建议先按最低基数评估`)
+      }
     }
 
     if (personal.pensionBase && personal.pensionBase < this.rawRule.benefit.pension.baseMin + 1) {
       insights.push('你选择了最低档缴费基数：当期支出最低，但退休时的平均缴费指数随之降低，基础养老金会减少')
+    }
+
+    // 口径声明：本工具的税额是「年度汇算清缴」结果。若平台或雇主按次预扣（劳务报酬 20% 起），
+    // 月到手会明显低于此处的月均税负，次年汇算才退补差额；不声明会让人以为每月只扣这么多。
+    if (effectiveRate > 0) {
+      insights.push('个税按年度汇算清缴口径测算：含 20% 费用减除与 5000 元/月基本减除；若按次预扣（20% 起）月到手会更低，以汇算为准')
+    } else if (netMonthly > 0) {
+      insights.push('个税按年度汇算清缴口径测算：当前收入未超减除标准，年度税额为 0')
     }
 
     return insights

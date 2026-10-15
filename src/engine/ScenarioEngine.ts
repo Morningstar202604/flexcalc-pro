@@ -43,8 +43,12 @@ export class ScenarioEngine {
     const netHourly = round(netMonthly / hours)
 
     const { score: rightsScore, flags: rightsFlags } = this.calcRightsScore(work, costBrk.total, personal, benefit)
-    // 保障缺失时封顶为 viable：否则净收入一高就出现"推荐你不参保"的反向激励
-    const incomeTier = netMonthly > 7000 ? 'recommended' : netMonthly > 4500 ? 'viable' : 'risky'
+    // 保障缺失时封顶为 viable：否则净收入一高就出现"推荐你不参保"的反向激励。
+    // 评级在「缴社保前」的收入能力上计算（社保是保障储备而非亏损，不能因参保降级），
+    // 底线用本城最低工资（月）当锚，与 ScenarioService 同口径（parity 测试锁定）。
+    const incomeCapacity = netMonthly + insuranceCost
+    const minWageFloor = this.rule.minimumWage.monthly
+    const incomeTier = incomeCapacity > minWageFloor * 2 ? 'recommended' : incomeCapacity > minWageFloor ? 'viable' : 'risky'
     const recommendation = !personal.hasSocialInsurance && incomeTier === 'recommended' ? 'viable' : incomeTier
     const keyInsights = this.generateInsights(work, costs, tax, netMonthly, benefit, personal)
 
@@ -117,9 +121,19 @@ export class ScenarioEngine {
       insights.push(`已参保：每月自缴养老+医保 ¥${benefit.totalMonthly.toLocaleString()}，净收入相应下降`)
     } else {
       insights.push(`若以灵活就业参保（养老+医保），每月需自缴 ¥${(benefit.pensionMonthly + benefit.medicalMonthly).toLocaleString()}，净收入相应下降`)
+      const insuranceCost = benefit.pensionMonthly + benefit.medicalMonthly
+      if (insuranceCost > netMonthly && netMonthly > 0) {
+        insights.push(`注意：参保月缴（¥${insuranceCost.toLocaleString()}）已超过当前月净收入，需靠其他收入或积蓄支撑；但断缴会损失缴费年限累计，建议先按最低基数评估`)
+      }
     }
     if (personal.pensionBase && personal.pensionBase < this.rule.benefit.pension.baseMin + 1) {
       insights.push('你选择了最低档缴费基数：当期支出最低，但退休时的平均缴费指数随之降低，基础养老金会减少')
+    }
+    // 与 ScenarioService 同口径声明（parity 测试锁定文本一致）
+    if (tax.effectiveRate > 0) {
+      insights.push('个税按年度汇算清缴口径测算：含 20% 费用减除与 5000 元/月基本减除；若按次预扣（20% 起）月到手会更低，以汇算为准')
+    } else if (netMonthly > 0) {
+      insights.push('个税按年度汇算清缴口径测算：当前收入未超减除标准，年度税额为 0')
     }
     return insights
   }

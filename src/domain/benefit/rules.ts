@@ -52,6 +52,8 @@ export interface RetirementRule {
   assumedAnnualReturn: Rate
 }
 
+export { ISSUANCE_MONTHS, DEFAULT_ISSUANCE_MONTHS, issuanceMonthsForAge } from '../../utils/issuanceMonths'
+
 /** 社保引擎配置：组合社保规则与退休规则 */
 export interface BenefitEngineConfig {
   benefit: BenefitRule

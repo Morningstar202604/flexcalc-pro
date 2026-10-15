@@ -28,6 +28,7 @@
           <div v-for="msg in messages" :key="msg.id" class="msg" :class="msg.role">
             <div class="msg-bubble">
               <div class="msg-text">{{ msg.content }}<span v-if="msg.isStreaming" class="cursor">|</span></div>
+              <div v-if="msg.source === 'kb' && !msg.isStreaming" class="msg-src">本地知识库 · 离线检索</div>
             </div>
           </div>
         </div>
@@ -179,22 +180,22 @@ function saveAndClose() {
 .chat-fab {
   position: fixed; bottom: 24px; right: 24px;
   width: 48px; height: 48px; border-radius: 12px;
-  background: #0d9488; color: #ffffff;
+  background: var(--color-primary-500); color: var(--color-text-inverse);
   border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 2px 8px rgba(13,148,136,0.25);
   z-index: 9999;
   transition: background 0.15s, transform 0.15s;
 }
-.chat-fab:hover { background: #0f766e; }
+.chat-fab:hover { background: var(--color-bg-brand-hover); }
 .chat-fab:active { transform: scale(0.96); }
-.chat-fab.active { background: #475569; }
+.chat-fab.active { background: var(--color-text-secondary); }
 
 .chat-panel {
   position: fixed; bottom: 80px; right: 24px;
   width: 360px; max-height: 560px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0; border-radius: 8px;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-primary); border-radius: 8px;
   display: flex; flex-direction: column; z-index: 9999;
   box-shadow: 0 4px 24px rgba(0,0,0,0.08);
 }
@@ -203,7 +204,7 @@ function saveAndClose() {
   display: flex; justify-content: space-between; align-items: center;
   padding: 12px 16px 0;
 }
-.ch-title { font-weight: 600; color: #0f172a; font-size: 14px; }
+.ch-title { font-weight: 600; color: var(--color-text-primary); font-size: 14px; }
 
 .chat-body {
   flex: 1; overflow-y: auto; padding: 10px 14px;
@@ -211,10 +212,10 @@ function saveAndClose() {
 }
 .chat-body::-webkit-scrollbar { width: 4px; }
 .chat-body::-webkit-scrollbar-track { background: transparent; }
-.chat-body::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 2px; }
+.chat-body::-webkit-scrollbar-thumb { background: var(--color-border-primary); border-radius: 2px; }
 
 .chat-empty {
-  color: #94a3b8; font-size: 13px; text-align: center;
+  color: var(--color-text-tertiary); font-size: 13px; text-align: center;
   padding: 24px 0;
 }
 
@@ -227,8 +228,8 @@ function saveAndClose() {
   border-radius: 6px; font-size: 13px; line-height: 1.6;
   white-space: pre-wrap; word-break: break-word;
 }
-.msg.user .msg-bubble { background: #0d9488; color: #ffffff; }
-.msg.assistant .msg-bubble { background: #f1f5f9; color: #1e293b; }
+.msg.user .msg-bubble { background: var(--color-primary-500); color: var(--color-text-inverse); }
+.msg.assistant .msg-bubble { background: var(--color-bg-tertiary); color: var(--color-text-primary); }
 
 .cursor { animation: blink 0.8s infinite; }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
@@ -238,7 +239,7 @@ function saveAndClose() {
 
 .chat-input {
   display: flex; gap: 6px; padding: 8px 12px;
-  align-items: flex-end; border-top: 1px solid #e2e8f0;
+  align-items: flex-end; border-top: 1px solid var(--color-border-primary);
 }
 
 .chat-foot {
@@ -252,7 +253,15 @@ function saveAndClose() {
 
 .exfil-list { margin: 4px 0; padding-left: 18px; }
 .exfil-list li { font-size: 12px; line-height: 1.6; }
-.host-line { font-size: 12px; color: #475569; padding: 0 0 4px; }
-.host-line b { color: #0f766e; word-break: break-all; }
-.ps-note-sm { font-size: 11px; color: #94a3b8; line-height: 1.5; margin-top: 2px; }
+.host-line { font-size: 12px; color: var(--color-text-secondary); padding: 0 0 4px; }
+.host-line b { color: var(--color-text-brand); word-break: break-all; }
+.ps-note-sm { font-size: 11px; color: var(--color-text-tertiary); line-height: 1.5; margin-top: 2px; }
+
+.msg-src {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+  border-top: 1px dashed var(--color-border-primary);
+  padding-top: 3px;
+}
 </style>

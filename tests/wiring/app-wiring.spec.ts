@@ -133,10 +133,10 @@ describe('naive-ui Provider 唯一性', () => {
 })
 
 describe('localStorage 写入异常保护', () => {
-  it('MainLayout 中所有 localStorage.setItem 都在 try/catch 内', () => {
-    const layout = read('src/layouts/MainLayout.vue')
+  it('主题持久化（store.toggleTheme）中的 setItem 在 try/catch 内', () => {
+    const store = read('src/stores/main.ts')
     const guarded = /try\s*\{[^}]*localStorage\.setItem[^}]*\}\s*catch/
-    expect(guarded.test(layout)).toBe(true)
+    expect(guarded.test(store)).toBe(true)
   })
 })
 

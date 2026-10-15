@@ -120,10 +120,14 @@
 
         <!-- Page Content -->
         <div class="page-container">
+          <!--
+            不用 <transition mode="out-in"> 包裹：懒加载路由首次进入时，
+            离场过渡与 chunk 解析存在竞态，会在部分 webview 里卡成
+            page-leave-active 永驻（整页停在旧页面上，点导航也换不掉）。
+            入场淡入由 .page-content 自身的 fadeIn 动画承担，效果等价。
+          -->
           <router-view v-slot="{ Component }">
-            <transition name="page" mode="out-in">
-              <component :is="Component" class="page-content" />
-            </transition>
+            <component :is="Component" class="page-content" />
           </router-view>
         </div>
       </main>
@@ -140,7 +144,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { NButton } from 'naive-ui'
 import { useMainStore } from '../stores/main'
@@ -170,7 +174,7 @@ const activeKey = computed(() => route.name as string || 'dashboard')
 const scrolled = ref(false)
 const sidebarCollapsed = ref(false)
 const mobileSidebarOpen = ref(false)
-const isDark = ref(false)
+const isDark = computed(() => store.isDark)
 const isMobile = ref(false)
 
 // key 必须与 src/app/router.ts 中的路由 name 完全一致：
@@ -194,15 +198,7 @@ function goDashboard() {
 }
 
 function toggleTheme() {
-  isDark.value = !isDark.value
-  document.documentElement.classList.toggle('dark', isDark.value)
-  // 隐私模式下 localStorage.setItem 会抛异常，必须吞掉：
-  // 主题切换本身已生效，写入失败只影响下次启动的偏好，不该中断交互
-  try {
-    localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
-  } catch {
-    /* 无法持久化，忽略 */
-  }
+  store.toggleTheme()
 }
 
 function checkMobile() {
@@ -220,16 +216,7 @@ function handleScroll() {
   scrolled.value = window.scrollY > 8
 }
 
-// Initialize theme
 onMounted(() => {
-  const savedTheme = localStorage.getItem('theme')
-  if (savedTheme) {
-    isDark.value = savedTheme === 'dark'
-  } else {
-    isDark.value = window.matchMedia('(prefers-color-scheme: dark)').matches
-  }
-  document.documentElement.classList.toggle('dark', isDark.value)
-
   checkMobile()
   window.addEventListener('resize', checkMobile)
   window.addEventListener('scroll', handleScroll)
@@ -702,14 +689,6 @@ onUnmounted(() => {
 }
 
 /* ---------- Page Transitions ---------- */
-.page-enter-active,
-.page-leave-active {
-  transition: opacity var(--transition-normal), transform var(--transition-normal);
-}
-
-.page-enter-from,
-.page-leave-to {
-  opacity: 0;
-  transform: translateY(8px);
-}
+/* 路由切换的入场淡入由 .page-content 的 fadeIn 动画承担；
+   离场过渡已移除（懒加载路由首进时的竞态会卡死 out-in 过渡） */
 </style>

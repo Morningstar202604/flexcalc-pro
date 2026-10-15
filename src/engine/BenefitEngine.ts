@@ -1,5 +1,6 @@
 import type { BenefitRule, BenefitBreakdown, RetirementRule } from '../types'
 import { round2 as round } from '../utils/number'
+import { issuanceMonthsForAge } from '../utils/issuanceMonths'
 
 /** 调用方可自选的缴费基数；缺省时按申报收入夹取到上下限 */
 export interface ContributionBase {
@@ -67,17 +68,20 @@ export class BenefitEngine {
     const contribution = Number.isFinite(monthlyContribution) ? Math.max(monthlyContribution, 0) : 0
 
     const months = Math.max(0, Math.round((safeRetire - safeAge) * 12))
+    // 缴费月数按缴费年限计（不超过到退休的月数）；缴满即停缴，账户余额继续复利至退休。
+    // 与 domain/benefit/calculator 同口径，由 parity 测试锁定一致性。
+    const contributionMonths = Math.min(months, Math.max(0, safeYears) * 12)
     let balance = 0
     const safeReturn = Number.isFinite(annualReturn) ? Math.min(Math.max(annualReturn, -1), 1) : 0.05
     for (let i = 0; i < months; i++) {
-      balance = balance * (1 + safeReturn / 12) + contribution
+      balance = balance * (1 + safeReturn / 12) + (i < contributionMonths ? contribution : 0)
     }
     const personalAccount = round(balance)
     // 国发〔2005〕38号：基础养老金 = 计发基数 ×(1+平均缴费指数)÷2 × 缴费年限 × 1%
     // 缴费指数低于 0.6 时按 0.6 计（低于该档需按 0.6/指数 的折扣系数调整，此处取下限口径）
     const idx = Math.max(0.6, Number.isFinite(paymentIndex) ? paymentIndex : 0.6)
     const basePension = round(benefitBase * (1 + idx) / 2 * safeYears * 0.01)
-    const personalPension = personalAccount > 0 ? round(personalAccount / 139) : 0
+    const personalPension = personalAccount > 0 ? round(personalAccount / issuanceMonthsForAge(safeRetire)) : 0
     return { personalAccount, basePension, personalPension, totalPension: round(basePension + personalPension), months }
   }
 }

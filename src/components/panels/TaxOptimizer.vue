@@ -5,6 +5,10 @@
         灵活就业者个人所得税按劳务报酬并入综合所得计税，适用税率表一（3%-45%）。
         注册个体工商户后会新增<strong>增值税</strong>与<strong>经营所得个税</strong>两个税种——原实现把增值税的 1% 优惠税率误当作个税税率，会严重低估个体户税负。
       </n-alert>
+      <p class="tax-guide-link">
+        税优速查：个人养老金 <b>12,000 元/年</b>、税优健康险 <b>2,400 元/年</b>、七项专项附加扣除均可税前扣除，均未计入本页测算——
+        <RouterLink :to="{ path: '/policy', query: { tab: 'manual' } }">去「民生手册 · 保险与税优」看办理方式与原文 ↗</RouterLink>
+      </p>
     </n-card>
 
     <n-grid :x-gap="12" cols="1 m:2" responsive="screen" style="margin-top: 12px">
@@ -88,7 +92,7 @@ import { NCard, NGrid, NGi, NAlert, NSteps, NStep } from 'naive-ui'
 import { useMainStore } from '../../stores/main'
 import { TaxEngine, type TaxEngineConfig } from '../../engine/TaxEngine'
 import { round2 } from '../../utils/number'
-import { axisX, axisY, GRID, legend, C } from '../../utils/chart'
+import { axisX, axisY, GRID, legend, chartColors } from '../../utils/chart'
 import ChartBox from '../ChartBox.vue'
 import SourceTag from '../SourceTag.vue'
 
@@ -148,8 +152,10 @@ const saving = computed(() => (itrVerified.value ? Math.max(0, laborTax.value - 
 const savingRate = computed(() => laborTax.value > 0 ? (saving.value / laborTax.value * 100).toFixed(0) : '0')
 
 const taxCompareOption = computed<EChartsCoreOption>(() => {
+  void store.isDark // 主题依赖：浅深切换后重算配色
   const incomes = [36000, 50000, 80000, 100000, 120000, 150000, 200000, 300000]
   if (!taxEngine.value) return {}
+  const P = chartColors()
   const laborTaxes = incomes.map(inc => Math.round(taxEngine.value!.calcLaborAnnual(inc, store.personal.specialDeductionMonth).annualTax))
   // 个体户口径：增值税 + 核定个税，两者相加才与左侧的"劳务报酬个税"可比。
   // 核定所得率未核到本城有效税率表时，只画增值税，避免用占位数得出"省税"结论。
@@ -163,23 +169,32 @@ const taxCompareOption = computed<EChartsCoreOption>(() => {
     : vatOnly
   return {
     tooltip: { trigger: 'axis' },
-    legend: legend(['劳务报酬个税', itrVerified.value ? '个体户税费合计' : '个体户增值税（个税待核定）']),
+    legend: legend(['劳务报酬个税', itrVerified.value ? '个体户税费合计' : '个体户增值税（个税待核定）'], P),
     grid: GRID,
-    xAxis: axisX(incomes.map(v => (v / 10000).toFixed(0) + '万')),
-    yAxis: axisY(),
+    xAxis: axisX(incomes.map(v => (v / 10000).toFixed(0) + '万'), P),
+    yAxis: axisY(P),
     series: [
-      { name: '劳务报酬个税', type: 'line', data: laborTaxes, smooth: true, lineStyle: { color: C.danger, width: 2 }, itemStyle: { color: C.danger } },
-      { name: itrVerified.value ? '个体户税费合计' : '个体户增值税（个税待核定）', type: 'line', data: soleTaxes, smooth: true, lineStyle: { color: C.primary, width: 2, type: itrVerified.value ? 'solid' : 'dashed' }, itemStyle: { color: C.primary } }
+      { name: '劳务报酬个税', type: 'line', data: laborTaxes, smooth: true, lineStyle: { color: P.danger, width: 2 }, itemStyle: { color: P.danger } },
+      { name: itrVerified.value ? '个体户税费合计' : '个体户增值税（个税待核定）', type: 'line', data: soleTaxes, smooth: true, lineStyle: { color: P.primary, width: 2, type: itrVerified.value ? 'solid' : 'dashed' }, itemStyle: { color: P.primary } }
     ]
   }
 })
 </script>
 
 <style scoped>
-.t-row.note { font-size: 11px; color: #94a3b8; padding-top: 2px; padding-bottom: 2px; border-bottom: none; }
+.t-row.note { font-size: 11px; color: var(--color-text-tertiary); padding-top: 2px; padding-bottom: 2px; border-bottom: none; }
 .warn-tag {
-  font-size: 10px; font-weight: 600; color: #d97706; margin-left: 6px;
+  font-size: 10px; font-weight: 600; color: var(--color-text-warning); margin-left: 6px;
   background: rgba(217,119,6,0.1); border: 1px solid rgba(217,119,6,0.25);
   border-radius: 3px; padding: 0 4px; letter-spacing: 0.3px;
 }
+
+.tax-guide-link {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+}
+.tax-guide-link b { color: var(--color-text-primary); }
+.tax-guide-link a { color: var(--color-text-brand); }
 </style>

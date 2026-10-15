@@ -1,0 +1,217 @@
+{
+  "city": "hangzhou",
+  "cityName": "杭州",
+  "year": 2026,
+  "lastCheckedAt": "2026-10-12",
+  "verified": false,
+  "occupation": "delivery",
+  "occupationName": "外卖骑手",
+  "income": {
+    "basePricePerOrder": 5.0,
+    "distanceRate": 1.2,
+    "weightSurcharge": {
+      "threshold": 5,
+      "rate": 0.5
+    },
+    "timeSubsidy": {
+      "peakHours": [
+        "11:00-13:00",
+        "17:00-19:00",
+        "21:00-23:00"
+      ],
+      "multiplier": 1.25
+    },
+    "holidayMultiplier": 1.6,
+    "rainSurcharge": 1.35,
+    "monthlyBonus": {
+      "threshold": 800,
+      "amount": 500
+    }
+  },
+  "tax": {
+    "method": "annual_consolidated",
+    "laborRemuneration": {
+      "expenseDeductionRate": 0.2,
+      "expenseDeductionFixed": 800,
+      "expenseDeductionThreshold": 4000,
+      "basicDeductionMonthly": 5000,
+      "taxTable": [
+        {
+          "min": 0,
+          "max": 36000,
+          "rate": 0.03,
+          "deduction": 0
+        },
+        {
+          "min": 36000,
+          "max": 144000,
+          "rate": 0.1,
+          "deduction": 2520
+        },
+        {
+          "min": 144000,
+          "max": 300000,
+          "rate": 0.2,
+          "deduction": 16920
+        },
+        {
+          "min": 300000,
+          "max": 420000,
+          "rate": 0.25,
+          "deduction": 31920
+        },
+        {
+          "min": 420000,
+          "max": 660000,
+          "rate": 0.3,
+          "deduction": 52920
+        },
+        {
+          "min": 660000,
+          "max": 960000,
+          "rate": 0.35,
+          "deduction": 85920
+        },
+        {
+          "min": 960000,
+          "max": 999999999,
+          "rate": 0.45,
+          "deduction": 181920
+        }
+      ]
+    }
+  },
+  "benefit": {
+    "pension": {
+      "baseMin": 5122,
+      "baseMax": 25612,
+      "rate": 0.2
+    },
+    "medical": {
+      "baseMin": 4812,
+      "baseMax": 24060,
+      "rate": 0.08
+    }
+  },
+  "minimumWage": {
+    "monthly": 2490,
+    "nonFullTimeHourly": 22.7
+  },
+  "retirement": {
+    "personalAccountRate": 0.08,
+    "paymentIndex": 0.6,
+    "assumedAnnualReturn": 0.03,
+    "benefitBaseMonthly": 8537
+  },
+  "soleProprietorship": {
+    "vatRate": 0.01,
+    "vatThresholdMonthly": 100000,
+    "itrIncomeRate": 0.1,
+    "itrDeductionMonthly": 5000,
+    "bizTaxTable": [
+      {
+        "min": 0,
+        "max": 30000,
+        "rate": 0.05,
+        "deduction": 0
+      },
+      {
+        "min": 30000,
+        "max": 90000,
+        "rate": 0.1,
+        "deduction": 1500
+      },
+      {
+        "min": 90000,
+        "max": 300000,
+        "rate": 0.2,
+        "deduction": 10500
+      },
+      {
+        "min": 300000,
+        "max": 500000,
+        "rate": 0.3,
+        "deduction": 40500
+      },
+      {
+        "min": 500000,
+        "max": 999999999,
+        "rate": 0.35,
+        "deduction": 65500
+      }
+    ]
+  },
+  "sources": {
+    "pension": {
+      "title": "浙江省人力资源和社会保障厅等五部门关于公布2026年社会保险有关基数的通知",
+      "issuedBy": "浙江省人力资源和社会保障厅、浙江省财政厅、浙江省统计局、浙江省医疗保障局、国家税务总局浙江省税务局",
+      "url": "https://rlsbt.zj.gov.cn/col/col1229506773/art/2026/art_2b4555c11a034b9e874038cbff2f84fb.html",
+      "effectiveFrom": "2026-01-01 起",
+      "confidence": "official",
+      "note": "原文：「2025年度浙江省非私营和私营单位就业人员加权平均工资为102446元」「从2026年1月1日起，我省社会保险个人缴费基数下限按上一年度非私营和私营单位就业人员加权平均工资的60%执行」。据此：月平均工资 102446÷12=8537.2 元，下限=8537.2×60%≈5122 元，上限=8537.2×300%≈25612 元（上下限为本项目按文件规则派生的换算值，文件未直接列出；如需精确值请查该通知附件 PDF）。核对于 2026-10-14。",
+      "retrievedAt": "2026-10-14"
+    },
+    "pensionRate": {
+      "title": "灵活就业人员养老保险缴费比例 20%",
+      "url": "",
+      "retrievedAt": "2026-10-14",
+      "confidence": "derived",
+      "note": "灵活就业人员企业职工基本养老保险缴费比例普遍为 20%（12% 统筹 + 8% 个人账户）；以参保地经办口径为准。"
+    },
+    "medical": {
+      "title": "杭州职工基本医疗保险（灵活就业人员）",
+      "url": "",
+      "retrievedAt": "2026-10-14",
+      "confidence": "unverified",
+      "note": "本城灵活就业人员职工医保个人费率未逐字回溯到现行有效文件，暂按 8% 占位参与测算（8% 为多地灵活就业职工医保常见口径）；请以参保地医保局口径为准，参保前务必核实。"
+    },
+    "tax": {
+      "title": "个人所得税法实施条例 + 税率表一（综合所得）",
+      "docNo": "国务院令第707号；国家税务总局公告2018年第61号",
+      "url": "https://fgk.chinatax.gov.cn/",
+      "effectiveFrom": "2019-01-01",
+      "retrievedAt": "2026-10-14",
+      "confidence": "official",
+      "note": "个税全国统一立法，按年度汇算清缴口径测算。"
+    },
+    "minimumWage": {
+      "title": "杭州最低工资标准",
+      "url": "",
+      "retrievedAt": "2026-10-14",
+      "confidence": "unverified",
+      "note": "本文件最低工资为占位值，未回溯本市现行有效通知原文，不可对外引用。"
+    },
+    "retirement": {
+      "title": "浙江省2026年社会保险有关基数（加权平均工资，养老金计发用）",
+      "issuedBy": "浙江省人力资源和社会保障厅",
+      "url": "https://rlsbt.zj.gov.cn/col/col1229506773/art/2026/art_2b4555c11a034b9e874038cbff2f84fb.html",
+      "effectiveFrom": "2026-01-01 起",
+      "confidence": "derived",
+      "note": "文件公布 2025 年度加权平均工资 102446 元/年（≈8537 元/月），并要求各地以其为依据计算 2026 年度社保待遇与缴费基数上下限。本项目以 8537 元/月作为计发基数口径（派生值，非文件直接列示）。核对于 2026-10-14。",
+      "retrievedAt": "2026-10-14"
+    },
+    "income": {
+      "title": "平台接单计价规则",
+      "issuedBy": "无公开权威来源",
+      "retrievedAt": "2026-10-14",
+      "confidence": "unverified",
+      "note": "平台单价与计价系数属商业规则，各平台仅对本平台骑手公示，无跨平台权威数据源。本文件继承的计价参数是**占位假设**（各城市同值），不代表本城真实单价，必须替换为本人 APP 内的实际计价与流水，否则收入链全部失真。"
+    },
+    "soleVat": {
+      "title": "增值税优惠政策衔接公告",
+      "docNo": "财政部 税务总局公告2026年第10号",
+      "url": "https://fgk.chinatax.gov.cn/zcfgk/c102416/c5247434/content.html",
+      "effectiveFrom": "2026-01-01 至 2027-12-31",
+      "retrievedAt": "2026-10-14",
+      "confidence": "official",
+      "note": "小规模纳税人 3% 减按 1%；月销售额 10 万元以下免征（全国统一）。"
+    },
+    "soleItr": {
+      "title": "经营所得核定征收（行业所得率法）",
+      "url": "",
+      "retrievedAt": "2026-10-14",
+      "confidence": "unverified",
+      "note": "行业所得率各省分别核定；本文件 10% 为占位值，未回溯本市现行表。"
+    }
+  }
+}

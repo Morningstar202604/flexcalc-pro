@@ -6,8 +6,6 @@
       <span class="ps-hint">调整参数实时计算</span>
     </div>
 
-    <n-divider style="margin:6px 0 10px" />
-
     <!-- City -->
     <div class="ps-group">
       <div class="ps-group-title">所在城市</div>
@@ -18,173 +16,195 @@
         :disabled="store.loading"
         @update:value="(v: string) => store.setCity(v)"
       />
+      <n-button size="tiny" quaternary block style="margin-top:4px" @click="showMap = true">
+        在地图上选城市（全国）
+      </n-button>
     </div>
 
-    <n-divider style="margin:6px 0" />
-
-    <!-- Work params -->
-    <div class="ps-group">
-      <div class="ps-group-title">工作参数</div>
-
-      <div class="ps-item">
-        <div class="ps-label">日均工时 <b>{{ store.work.dailyHours }}h</b></div>
-        <n-slider v-model:value="store.work.dailyHours" :min="4" :max="14" :step="1" :tooltip-formatter="(v: number) => v + ' 小时'" />
-      </div>
-
-      <div class="ps-item">
-        <div class="ps-label">日均接单 <b>{{ store.work.dailyOrders }}单</b></div>
-        <n-slider v-model:value="store.work.dailyOrders" :min="15" :max="60" :step="5" :tooltip-formatter="(v: number) => v + ' 单'" />
-      </div>
-
-      <div class="ps-item">
-        <div class="ps-label">平均距离 <b>{{ store.work.avgDistance }}km</b></div>
-        <n-slider v-model:value="store.work.avgDistance" :min="1" :max="6" :step="0.5" :tooltip-formatter="(v: number) => v + ' km'" />
-      </div>
-
-      <div class="ps-item">
-        <div class="ps-label">月工作天 <b>{{ store.work.workDaysMonth }}天</b></div>
-        <n-slider v-model:value="store.work.workDaysMonth" :min="20" :max="31" :step="1" :tooltip-formatter="(v: number) => v + ' 天'" />
-      </div>
-
-      <div class="ps-item">
-        <div class="ps-label">月雨天 <b>{{ store.work.rainDaysMonth }}天</b></div>
-        <n-slider v-model:value="store.work.rainDaysMonth" :min="0" :max="15" :step="1" :tooltip-formatter="(v: number) => v + ' 天'" />
-      </div>
-
-      <div class="ps-item">
-        <div class="ps-label">月节假日 <b>{{ store.work.holidayDaysMonth }}天</b></div>
-        <n-slider v-model:value="store.work.holidayDaysMonth" :min="0" :max="10" :step="1" :tooltip-formatter="(v: number) => v + ' 天'" />
-      </div>
-    </div>
-
-    <n-divider style="margin:6px 0" />
-
-    <!-- Costs -->
-    <div class="ps-group">
-      <div class="ps-group-title">车辆与成本</div>
-
-      <div class="ps-item">
-        <div class="ps-label">车辆类型</div>
-        <n-radio-group v-model:value="store.costs.vehicleType" size="small">
-          <n-radio-button value="electric">电动</n-radio-button>
-          <n-radio-button value="fuel">燃油</n-radio-button>
-          <n-radio-button value="mixed">混合</n-radio-button>
-        </n-radio-group>
-      </div>
-
-      <div v-if="store.costs.vehicleType !== 'electric'" class="ps-item">
-        <div class="ps-label">月油费 <b>¥{{ store.costs.fuelCostMonth }}</b></div>
-        <n-slider v-model:value="store.costs.fuelCostMonth" :min="0" :max="3000" :step="100" />
-      </div>
-
-      <div v-if="store.costs.vehicleType !== 'fuel'" class="ps-item">
-        <div class="ps-label">月充电费 <b>¥{{ store.costs.electricityCostMonth }}</b></div>
-        <n-slider v-model:value="store.costs.electricityCostMonth" :min="0" :max="1200" :step="50" />
-      </div>
-
-      <div class="ps-item">
-        <div class="ps-label">维护费 <b>¥{{ store.costs.maintenanceMonth }}</b></div>
-        <n-slider v-model:value="store.costs.maintenanceMonth" :min="0" :max="1000" :step="50" />
-      </div>
-
-      <div class="ps-item">
-        <div class="ps-label">餐饮费 <b>¥{{ store.costs.foodCostMonth }}</b></div>
-        <n-slider v-model:value="store.costs.foodCostMonth" :min="200" :max="2000" :step="100" />
-      </div>
-
-      <div class="ps-item">
-        <div class="ps-label">商业保险 <b>¥{{ store.costs.insuranceMonth }}</b></div>
-        <n-slider v-model:value="store.costs.insuranceMonth" :min="0" :max="800" :step="50" />
-      </div>
-
-      <div class="ps-item">
-        <div class="ps-label">通讯费 <b>¥{{ store.costs.phoneCostMonth }}</b></div>
-        <n-slider v-model:value="store.costs.phoneCostMonth" :min="0" :max="500" :step="25" />
-      </div>
-
-      <div class="ps-item">
-        <div class="ps-label">交通罚款 <b>¥{{ store.costs.trafficFineMonth }}</b></div>
-        <n-slider v-model:value="store.costs.trafficFineMonth" :min="0" :max="500" :step="25" />
-      </div>
-
-      <div class="ps-item">
-        <div class="ps-label">车辆折旧 <b>¥{{ store.costs.vehicleDepreciationMonth }}</b></div>
-        <n-slider v-model:value="store.costs.vehicleDepreciationMonth" :min="0" :max="1000" :step="50" />
-      </div>
-
-      <div class="ps-item">
-        <div class="ps-label">其他 <b>¥{{ store.costs.otherCostMonth }}</b></div>
-        <n-slider v-model:value="store.costs.otherCostMonth" :min="0" :max="1000" :step="50" />
-      </div>
-    </div>
-
-    <n-divider style="margin:6px 0" />
-
-    <!-- Tax & Insurance -->
-    <div class="ps-group">
-      <div class="ps-group-title">税务与社保</div>
-
-      <div class="ps-item">
-        <div class="ps-label">当前年龄 <b>{{ store.personal.currentAge }}岁</b></div>
-        <n-slider v-model:value="store.personal.currentAge" :min="16" :max="65" :step="1" :tooltip-formatter="(v: number) => v + ' 岁'" />
-      </div>
-
-      <div class="ps-item">
-        <div class="ps-label">预计退休年龄 <b>{{ store.personal.expectedRetireAge }}岁</b></div>
-        <n-slider v-model:value="store.personal.expectedRetireAge" :min="store.personal.currentAge + 1" :max="70" :step="1" :tooltip-formatter="(v: number) => v + ' 岁'" />
-      </div>
-
-      <div class="ps-item ps-switch-row">
-        <span class="ps-label">已缴社保</span>
-        <n-switch v-model:value="store.personal.hasSocialInsurance" size="small" />
-      </div>
-
-      <div v-if="medicalTiers.length > 0" class="ps-item">
-        <div class="ps-label">医保档次 <SourceTag source-key="medical" /></div>
-        <n-select
-          :value="store.personal.medicalTierId || defaultTierId"
-          :options="medicalTierOptions"
-          size="small"
-          @update:value="(v: string) => store.personal.medicalTierId = v === defaultTierId ? undefined : v"
-        />
-        <div class="ps-note">{{ activeTierNote }}</div>
-      </div>
-
-      <template v-if="store.personal.hasSocialInsurance">
-        <div class="ps-item">
-          <div class="ps-label">养老缴费基数 <SourceTag source-key="pension" /> <b>¥{{ store.personal.pensionBase ?? autoPensionBase }}</b></div>
-          <n-slider
-            :value="store.personal.pensionBase ?? autoPensionBase"
-            :min="pensionBaseMin"
-            :max="pensionBaseMax"
-            :step="100"
-            @update:value="(v: number) => store.personal.pensionBase = v === autoPensionBase ? undefined : v"
-          />
-          <div class="ps-note">
-            规则原文：基数在上下限范围内自选（粤人社规〔2026〕14号第六条）。留空=按申报收入 ¥{{ Math.round(store.scenarios[0]?.income.grossIncome ?? 0) }} 计。
-            <b>选低基数当期省得多，但退休时的平均缴费指数随之降低，基础养老金会减少。</b>
-          </div>
-        </div>
-
-        <div class="ps-item">
-          <div class="ps-label">医保缴费基数 <SourceTag source-key="medical" /> <b>¥{{ store.personal.medicalBase ?? autoMedicalBase }}</b></div>
-          <n-slider
-            :value="store.personal.medicalBase ?? autoMedicalBase"
-            :min="medicalBaseMin"
-            :max="medicalBaseMax"
-            :step="100"
-            @update:value="(v: number) => store.personal.medicalBase = v === autoMedicalBase ? undefined : v"
-          />
-          <div class="ps-note">同上，医保基数也在上下限内自选。留空=按申报收入计。</div>
+    <n-modal v-model:show="showMap" preset="card" title="选择城市 — 全国地图" :style="{ width: 'min(760px, 94vw)' }">
+      <ChinaMapPicker :current="store.work.city" @select="onMapPick" />
+      <template #footer>
+        <div class="map-foot">
+          已收录 {{ cityCount }} 座城市；未收录城市可在参数栏用所在地口径近似，或向我们反馈补充。
         </div>
       </template>
+    </n-modal>
 
-      <div class="ps-item">
-        <div class="ps-label">专项附加扣除/月 <b>¥{{ store.personal.specialDeductionMonth }}</b></div>
-        <n-slider v-model:value="store.personal.specialDeductionMonth" :min="0" :max="5000" :step="500" />
-        <div class="ps-note">子女教育 / 房贷 / 租金 / 赡养老人</div>
+    <!-- Work params -->
+    <FoldCard
+      class="ps-fold"
+      dense
+      default-open
+      title="工作参数"
+      :summary="`${store.work.dailyHours}h/天 · ${store.work.dailyOrders}单 · ${store.work.workDaysMonth}天`"
+    >
+      <div class="ps-group">
+        <div class="ps-item">
+          <div class="ps-label">日均工时 <b>{{ store.work.dailyHours }}h</b></div>
+          <n-slider v-model:value="store.work.dailyHours" :min="4" :max="14" :step="1" :tooltip-formatter="(v: number) => v + ' 小时'" />
+        </div>
+
+        <div class="ps-item">
+          <div class="ps-label">日均接单 <b>{{ store.work.dailyOrders }}单</b></div>
+          <n-slider v-model:value="store.work.dailyOrders" :min="15" :max="60" :step="5" :tooltip-formatter="(v: number) => v + ' 单'" />
+        </div>
+
+        <div class="ps-item">
+          <div class="ps-label">平均距离 <b>{{ store.work.avgDistance }}km</b></div>
+          <n-slider v-model:value="store.work.avgDistance" :min="1" :max="6" :step="0.5" :tooltip-formatter="(v: number) => v + ' km'" />
+        </div>
+
+        <div class="ps-item">
+          <div class="ps-label">月工作天 <b>{{ store.work.workDaysMonth }}天</b></div>
+          <n-slider v-model:value="store.work.workDaysMonth" :min="20" :max="31" :step="1" :tooltip-formatter="(v: number) => v + ' 天'" />
+        </div>
+
+        <div class="ps-item">
+          <div class="ps-label">月雨天 <b>{{ store.work.rainDaysMonth }}天</b></div>
+          <n-slider v-model:value="store.work.rainDaysMonth" :min="0" :max="15" :step="1" :tooltip-formatter="(v: number) => v + ' 天'" />
+        </div>
+
+        <div class="ps-item">
+          <div class="ps-label">月节假日 <b>{{ store.work.holidayDaysMonth }}天</b></div>
+          <n-slider v-model:value="store.work.holidayDaysMonth" :min="0" :max="10" :step="1" :tooltip-formatter="(v: number) => v + ' 天'" />
+        </div>
       </div>
-    </div>
+    </FoldCard>
+
+    <!-- Costs -->
+    <FoldCard
+      class="ps-fold"
+      dense
+      title="车辆与成本"
+      :summary="`月支出 ¥${costTotal.toLocaleString()}`"
+    >
+      <div class="ps-group">
+        <div class="ps-item">
+          <div class="ps-label">车辆类型</div>
+          <n-radio-group v-model:value="store.costs.vehicleType" size="small">
+            <n-radio-button value="electric">电动</n-radio-button>
+            <n-radio-button value="fuel">燃油</n-radio-button>
+            <n-radio-button value="mixed">混合</n-radio-button>
+          </n-radio-group>
+        </div>
+
+        <div v-if="store.costs.vehicleType !== 'electric'" class="ps-item">
+          <div class="ps-label">月油费 <b>¥{{ store.costs.fuelCostMonth }}</b></div>
+          <n-slider v-model:value="store.costs.fuelCostMonth" :min="0" :max="3000" :step="100" />
+        </div>
+
+        <div v-if="store.costs.vehicleType !== 'fuel'" class="ps-item">
+          <div class="ps-label">月充电费 <b>¥{{ store.costs.electricityCostMonth }}</b></div>
+          <n-slider v-model:value="store.costs.electricityCostMonth" :min="0" :max="1200" :step="50" />
+        </div>
+
+        <div class="ps-item">
+          <div class="ps-label">维护费 <b>¥{{ store.costs.maintenanceMonth }}</b></div>
+          <n-slider v-model:value="store.costs.maintenanceMonth" :min="0" :max="1000" :step="50" />
+        </div>
+
+        <div class="ps-item">
+          <div class="ps-label">餐饮费 <b>¥{{ store.costs.foodCostMonth }}</b></div>
+          <n-slider v-model:value="store.costs.foodCostMonth" :min="200" :max="2000" :step="100" />
+        </div>
+
+        <div class="ps-item">
+          <div class="ps-label">商业保险 <b>¥{{ store.costs.insuranceMonth }}</b></div>
+          <n-slider v-model:value="store.costs.insuranceMonth" :min="0" :max="800" :step="50" />
+        </div>
+
+        <div class="ps-item">
+          <div class="ps-label">通讯费 <b>¥{{ store.costs.phoneCostMonth }}</b></div>
+          <n-slider v-model:value="store.costs.phoneCostMonth" :min="0" :max="500" :step="25" />
+        </div>
+
+        <div class="ps-item">
+          <div class="ps-label">交通罚款 <b>¥{{ store.costs.trafficFineMonth }}</b></div>
+          <n-slider v-model:value="store.costs.trafficFineMonth" :min="0" :max="500" :step="25" />
+        </div>
+
+        <div class="ps-item">
+          <div class="ps-label">车辆折旧 <b>¥{{ store.costs.vehicleDepreciationMonth }}</b></div>
+          <n-slider v-model:value="store.costs.vehicleDepreciationMonth" :min="0" :max="1000" :step="50" />
+        </div>
+
+        <div class="ps-item">
+          <div class="ps-label">其他 <b>¥{{ store.costs.otherCostMonth }}</b></div>
+          <n-slider v-model:value="store.costs.otherCostMonth" :min="0" :max="1000" :step="50" />
+        </div>
+      </div>
+    </FoldCard>
+
+    <!-- Tax & Insurance -->
+    <FoldCard
+      class="ps-fold"
+      dense
+      title="税务与社保"
+      :summary="store.personal.hasSocialInsurance ? '已参保' : '未参保'"
+    >
+      <div class="ps-group">
+        <div class="ps-item">
+          <div class="ps-label">当前年龄 <b>{{ store.personal.currentAge }}岁</b></div>
+          <n-slider v-model:value="store.personal.currentAge" :min="16" :max="65" :step="1" :tooltip-formatter="(v: number) => v + ' 岁'" />
+        </div>
+
+        <div class="ps-item">
+          <div class="ps-label">预计退休年龄 <b>{{ store.personal.expectedRetireAge }}岁</b></div>
+          <n-slider v-model:value="store.personal.expectedRetireAge" :min="store.personal.currentAge + 1" :max="70" :step="1" :tooltip-formatter="(v: number) => v + ' 岁'" />
+        </div>
+
+        <div class="ps-item ps-switch-row">
+          <span class="ps-label">已缴社保</span>
+          <n-switch v-model:value="store.personal.hasSocialInsurance" size="small" />
+        </div>
+
+        <div v-if="medicalTiers.length > 0" class="ps-item">
+          <div class="ps-label">医保档次 <SourceTag source-key="medical" /></div>
+          <n-select
+            :value="store.personal.medicalTierId || defaultTierId"
+            :options="medicalTierOptions"
+            size="small"
+            @update:value="(v: string) => store.personal.medicalTierId = v === defaultTierId ? undefined : v"
+          />
+          <div class="ps-note">{{ activeTierNote }}</div>
+        </div>
+
+        <template v-if="store.personal.hasSocialInsurance">
+          <div class="ps-item">
+            <div class="ps-label">养老缴费基数 <SourceTag source-key="pension" /> <b>¥{{ store.personal.pensionBase ?? autoPensionBase }}</b></div>
+            <n-slider
+              :value="store.personal.pensionBase ?? autoPensionBase"
+              :min="pensionBaseMin"
+              :max="pensionBaseMax"
+              :step="100"
+              @update:value="(v: number) => store.personal.pensionBase = v === autoPensionBase ? undefined : v"
+            />
+            <div class="ps-note">
+              规则原文：基数在上下限范围内自选（粤人社规〔2026〕14号第六条）。留空=按申报收入 ¥{{ Math.round(store.scenarios[0]?.income.grossIncome ?? 0) }} 计。
+              <b>选低基数当期省得多，但退休时的平均缴费指数随之降低，基础养老金会减少。</b>
+            </div>
+          </div>
+
+          <div class="ps-item">
+            <div class="ps-label">医保缴费基数 <SourceTag source-key="medical" /> <b>¥{{ store.personal.medicalBase ?? autoMedicalBase }}</b></div>
+            <n-slider
+              :value="store.personal.medicalBase ?? autoMedicalBase"
+              :min="medicalBaseMin"
+              :max="medicalBaseMax"
+              :step="100"
+              @update:value="(v: number) => store.personal.medicalBase = v === autoMedicalBase ? undefined : v"
+            />
+            <div class="ps-note">同上，医保基数也在上下限内自选。留空=按申报收入计。</div>
+          </div>
+        </template>
+
+        <div class="ps-item">
+          <div class="ps-label">专项附加扣除/月 <b>¥{{ store.personal.specialDeductionMonth }}</b></div>
+          <n-slider v-model:value="store.personal.specialDeductionMonth" :min="0" :max="5000" :step="500" />
+          <div class="ps-note">子女教育 / 房贷 / 租金 / 赡养老人。税额按年度汇算清缴口径，含 5000 元/月基本减除；若你另有主业已享受该减除，实际税负会更高</div>
+        </div>
+      </div>
+    </FoldCard>
 
     <div class="ps-foot">
       <n-tag size="small" :bordered="false" type="info">参数与测算均在本机完成</n-tag>
@@ -196,12 +216,28 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { NSlider, NRadioGroup, NRadioButton, NSwitch, NDivider, NTag, NSelect, NButton } from 'naive-ui'
+import { NSlider, NRadioGroup, NRadioButton, NSwitch, NTag, NSelect, NButton, NModal } from 'naive-ui'
+import { ref } from 'vue'
 import { useMainStore, CITIES } from '../stores/main'
 import SourceTag from './SourceTag.vue'
+import FoldCard from './FoldCard.vue'
+import ChinaMapPicker from './ChinaMapPicker.vue'
 
 const store = useMainStore()
 const cityOptions = CITIES
+const showMap = ref(false)
+const cityCount = CITIES.length
+
+function onMapPick(city: string) {
+  showMap.value = false
+  void store.setCity(city)
+}
+
+const costTotal = computed(() => {
+  const c = store.costs
+  return c.fuelCostMonth + c.electricityCostMonth + c.maintenanceMonth + c.insuranceMonth
+    + c.phoneCostMonth + c.foodCostMonth + c.trafficFineMonth + c.vehicleDepreciationMonth + c.otherCostMonth
+})
 
 /** 东莞等地医保分档收费，无单一法定费率，必须让用户按实际参保档次选 */
 const medicalTiers = computed(() => store.rule?.benefit.medicalTiers ?? [])
@@ -240,7 +276,7 @@ const autoMedicalBase = computed(() => autoBase(medicalBaseMin.value, medicalBas
   padding: 10px 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 8px;
 }
 
 .ps-head {
@@ -252,11 +288,16 @@ const autoMedicalBase = computed(() => autoBase(medicalBaseMin.value, medicalBas
 .ps-city {
   font-size: 14px;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--color-text-primary);
 }
 .ps-hint {
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--color-text-tertiary);
+}
+
+/* 折叠面板内部的参数组不再带自身外框，由 FoldCard 统一承载 */
+.ps-fold + .ps-fold {
+  margin-top: 0;
 }
 
 .ps-group {
@@ -267,7 +308,7 @@ const autoMedicalBase = computed(() => autoBase(medicalBaseMin.value, medicalBas
 .ps-group-title {
   font-size: 10px;
   font-weight: 600;
-  color: #94a3b8;
+  color: var(--color-text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.8px;
   padding: 6px 2px 2px;
@@ -278,7 +319,7 @@ const autoMedicalBase = computed(() => autoBase(medicalBaseMin.value, medicalBas
 }
 .ps-label {
   font-size: 12px;
-  color: #64748b;
+  color: var(--color-text-secondary);
   margin-bottom: 2px;
   display: flex;
   align-items: center;
@@ -286,7 +327,7 @@ const autoMedicalBase = computed(() => autoBase(medicalBaseMin.value, medicalBas
 }
 .ps-label b {
   margin-left: auto;
-  color: #0f172a;
+  color: var(--color-text-primary);
   font-weight: 600;
   font-size: 12px;
 }
@@ -303,7 +344,7 @@ const autoMedicalBase = computed(() => autoBase(medicalBaseMin.value, medicalBas
 
 .ps-note {
   font-size: 10px;
-  color: #94a3b8;
+  color: var(--color-text-tertiary);
   margin-top: 2px;
   padding-left: 2px;
 }
@@ -317,9 +358,11 @@ const autoMedicalBase = computed(() => autoBase(medicalBaseMin.value, medicalBas
 }
 .ps-restored {
   font-size: 10px;
-  color: #0f766e;
+  color: var(--color-text-brand);
   background: rgba(13,148,136,0.07);
   border-radius: 3px;
   padding: 3px 6px;
 }
+
+.map-foot { font-size: 11px; color: var(--color-text-tertiary); }
 </style>

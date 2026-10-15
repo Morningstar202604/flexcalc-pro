@@ -1,5 +1,5 @@
 <template>
-  <n-config-provider :theme-overrides="themeOverrides">
+  <n-config-provider :theme="theme" :theme-overrides="themeOverrides">
     <n-message-provider>
       <MainLayout />
     </n-message-provider>
@@ -7,8 +7,11 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
-import { NConfigProvider, NMessageProvider, type GlobalThemeOverrides } from 'naive-ui'
+import { computed, watch, onMounted } from 'vue'
+import {
+  NConfigProvider, NMessageProvider,
+  darkTheme, lightTheme, type GlobalThemeOverrides,
+} from 'naive-ui'
 import MainLayout from './layouts/MainLayout.vue'
 import { useMainStore } from './stores/main'
 
@@ -24,106 +27,133 @@ onMounted(() => {
   void store.loadRule(store.work.city)
 })
 
-const themeOverrides: GlobalThemeOverrides = {
-  common: {
-    primaryColor: '#0d9488',
-    primaryColorHover: '#0f766e',
-    primaryColorPressed: '#115e59',
-    borderRadius: '8px',
-    borderRadiusSmall: '6px',
-    fontWeightStrong: '600',
-    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+// 同步全局主题 DOM：布局与内容组件都依赖 html[data-theme] 驱动的 CSS 变量。
+// 默认深色（:root 无属性），store.isDark 为 true 时仍显式写 dark，保持一致且可读。
+watch(
+  () => store.isDark,
+  (v) => {
+    document.documentElement.setAttribute('data-theme', v ? 'dark' : 'light')
   },
-  Card: {
-    color: '#ffffff',
-    colorModal: '#ffffff',
-    colorPopover: '#ffffff',
-    textColor: '#1e293b',
-    borderColor: '#e2e8f0',
-    titleTextColor: '#0f172a',
-    boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.08)',
-  },
-  DataTable: {
-    thColor: '#f8fafc',
-    tdColor: '#ffffff',
-    tdColorHover: '#f1f5f9',
-    borderColor: '#e2e8f0',
-    thTextColor: '#475569',
-    tdTextColor: '#334155',
-  },
-  Input: {
-    color: '#ffffff',
-    colorFocus: '#ffffff',
-    border: '1px solid #e2e8f0',
-    borderHover: '1px solid #94a3b8',
-    borderFocus: '1px solid #0d9488',
-    textColor: '#1e293b',
-  },
-  Select: {
-    peers: {
-      InternalSelection: {
-        color: '#ffffff',
-        border: '1px solid #e2e8f0',
-        borderHover: '1px solid #94a3b8',
-        textColor: '#1e293b',
+  { immediate: true },
+)
+
+// naive-ui 组件级主题：深/浅用 naive-ui 内建主题切换，品牌色引用设计 token
+// （src/styles/variables.css）。注意 primaryColor 三兄弟会被 naive-ui 在 JS 里
+// 用 seemly.changeColor 做颜色运算，不能是 var(...) 字符串，必须解析成真实色值；
+// 其余只进 CSS 变量的键保持 var() 透传即可。
+const theme = computed(() => (store.isDark ? darkTheme : lightTheme))
+
+function readToken(name: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+}
+
+const themeOverrides = computed<GlobalThemeOverrides>(() => {
+  // 依赖 isDark：watch 会先同步 data-theme，computed 求值时读到的是新主题的色值
+  void store.isDark
+  const primaryColor = readToken('--color-primary-500')
+  const primaryColorHover = readToken('--color-primary-400')
+  const primaryColorPressed = readToken('--color-primary-600')
+  return {
+    common: {
+      primaryColor,
+      primaryColorHover,
+      primaryColorPressed,
+      borderRadius: '8px',
+      borderRadiusSmall: '6px',
+      fontWeightStrong: '600',
+      fontFamily: 'var(--font-family-sans)',
+      },
+    Card: {
+      color: 'var(--color-bg-primary)',
+      colorModal: 'var(--color-bg-primary)',
+      colorPopover: 'var(--color-bg-primary)',
+      textColor: 'var(--color-text-primary)',
+      borderColor: 'var(--color-border-primary)',
+      titleTextColor: 'var(--color-text-primary)',
+      boxShadow: 'var(--color-shadow-md)',
+    },
+    DataTable: {
+      thColor: 'var(--color-bg-tertiary)',
+      tdColor: 'var(--color-bg-primary)',
+      tdColorHover: 'var(--color-bg-tertiary)',
+      borderColor: 'var(--color-border-primary)',
+      thTextColor: 'var(--color-text-secondary)',
+      tdTextColor: 'var(--color-text-primary)',
+    },
+    Input: {
+      color: 'var(--color-bg-primary)',
+      colorFocus: 'var(--color-bg-primary)',
+      border: '1px solid var(--color-border-primary)',
+      borderHover: '1px solid var(--color-border-secondary)',
+      borderFocus: '1px solid var(--color-border-focus)',
+      textColor: 'var(--color-text-primary)',
+    },
+    Select: {
+      peers: {
+        InternalSelection: {
+          color: 'var(--color-bg-primary)',
+          border: '1px solid var(--color-border-primary)',
+          borderHover: '1px solid var(--color-border-secondary)',
+          textColor: 'var(--color-text-primary)',
+        },
       },
     },
-  },
   Slider: {
-    fillColor: '#0d9488',
-    fillColorHover: '#0d9488',
-    railColor: '#e2e8f0',
+    fillColor: primaryColor,
+    fillColorHover: primaryColor,
+    railColor: 'var(--color-border-primary)',
   },
   Statistic: {
-    labelTextColor: '#64748b',
-    valueTextColor: '#0f172a',
+    labelTextColor: 'var(--color-text-secondary)',
+    valueTextColor: 'var(--color-text-primary)',
   },
   Tag: {
-    colorInfo: 'rgba(13,148,136,0.08)',
-    colorSuccess: 'rgba(34,197,94,0.08)',
-    colorWarning: 'rgba(245,158,11,0.08)',
-    colorError: 'rgba(239,68,68,0.08)',
-    textColorInfo: '#0d9488',
-    textColorSuccess: '#16a34a',
-    textColorWarning: '#d97706',
-    textColorError: '#dc2626',
+    colorInfo: 'var(--color-primary-50)',
+    colorSuccess: 'var(--color-success-50)',
+    colorWarning: 'var(--color-warning-50)',
+    colorError: 'var(--color-danger-50)',
+    textColorInfo: 'var(--color-primary-600)',
+    textColorSuccess: 'var(--color-success-600)',
+    textColorWarning: 'var(--color-warning-600)',
+    textColorError: 'var(--color-danger-600)',
   },
   Menu: {
-    itemTextColor: '#64748b',
-    itemTextColorActive: '#0d9488',
-    itemTextColorHover: '#1e293b',
-    itemColorActive: 'rgba(13,148,136,0.06)',
+    itemTextColor: 'var(--color-text-secondary)',
+    itemTextColorActive: primaryColor,
+    itemTextColorHover: 'var(--color-text-primary)',
+    itemColorActive: 'var(--color-primary-50)',
   },
   Alert: {
-    colorInfo: 'rgba(13,148,136,0.04)',
-    borderColorInfo: 'rgba(13,148,136,0.15)',
-    titleTextColorInfo: '#0f766e',
-    textColorInfo: '#115e59',
-    colorSuccess: 'rgba(34,197,94,0.04)',
-    borderColorSuccess: 'rgba(34,197,94,0.15)',
-    colorWarning: 'rgba(245,158,11,0.04)',
-    borderColorWarning: 'rgba(245,158,11,0.15)',
-    colorError: 'rgba(239,68,68,0.04)',
-    borderColorError: 'rgba(239,68,68,0.15)',
+    colorInfo: 'var(--color-primary-50)',
+    borderColorInfo: 'var(--color-primary-200)',
+    titleTextColorInfo: 'var(--color-primary-700)',
+    textColorInfo: 'var(--color-primary-800)',
+    colorSuccess: 'var(--color-success-50)',
+    borderColorSuccess: 'var(--color-success-200)',
+    colorWarning: 'var(--color-warning-50)',
+    borderColorWarning: 'var(--color-warning-200)',
+    colorError: 'var(--color-danger-50)',
+    borderColorError: 'var(--color-danger-200)',
   },
   Button: {
-    textColor: '#ffffff',
+    textColor: 'var(--color-text-inverse)',
     fontWeight: 500,
   },
   Modal: {
-    color: '#ffffff',
-    borderColor: '#e2e8f0',
+    color: 'var(--color-bg-primary)',
+    borderColor: 'var(--color-border-primary)',
   },
   Drawer: {
-    color: '#ffffff',
+    color: 'var(--color-bg-primary)',
   },
   Popover: {
-    color: '#ffffff',
+    color: 'var(--color-bg-primary)',
   },
   Tooltip: {
-    color: '#1e293b',
+    color: 'var(--color-bg-inverse)',
   },
-}
+  }
+})
 </script>
 
 <style>

@@ -36,9 +36,13 @@
       </n-gi>
     </n-grid>
 
-    <n-card title="方案净收入对比" class="card" style="margin-top: 12px">
+    <FoldCard
+      title="方案净收入对比"
+      :summary="store.comparison?.best ? `最优「${store.comparison.best.name}」` : '暂无方案'"
+      style="margin-top: 12px"
+    >
       <ChartBox :option="compareOption" :height="320" />
-    </n-card>
+    </FoldCard>
 
     <!-- 自定义方案 -->
     <n-modal v-model:show="showAdd" preset="card" title="添加自定义方案" style="width: 420px">
@@ -72,22 +76,25 @@ import { computed, reactive, ref } from 'vue'
 import type { EChartsCoreOption } from 'echarts/core'
 import { NCard, NGrid, NGi, NTag, NSpace, NButton, NModal, NInput, NSlider } from 'naive-ui'
 import { useMainStore } from '../../stores/main'
-import { axisX, axisY, GRID, SERIES_COLORS } from '../../utils/chart'
+import { axisX, axisY, GRID, chartColors } from '../../utils/chart'
 import { scoreTier } from '../../utils/score'
 import ChartBox from '../ChartBox.vue'
+import FoldCard from '../FoldCard.vue'
 
 const store = useMainStore()
 
 const compareOption = computed<EChartsCoreOption>(() => {
+  void store.isDark // 主题依赖：浅深切换后重算配色
   const comp = store.comparison
   if (!comp) return {}
+  const P = chartColors()
   return {
     tooltip: { trigger: 'axis' },
     grid: GRID,
-    xAxis: axisX(comp.scenarios.map(s => s.name)),
-    yAxis: axisY(),
+    xAxis: axisX(comp.scenarios.map(s => s.name), P),
+    yAxis: axisY(P),
     series: [
-      { name: '月净收入', type: 'bar', data: comp.scenarios.map((s, i) => ({ value: s.netMonthly, itemStyle: { color: SERIES_COLORS[i] || '#cbd5e1' } })), barWidth: '35%' },
+      { name: '月净收入', type: 'bar', data: comp.scenarios.map((s, i) => ({ value: s.netMonthly, itemStyle: { color: P.series[i] || P.light } })), barWidth: '35%' },
     ]
   }
 })
@@ -111,19 +118,19 @@ function confirmAdd() {
 
 <style scoped>
 .sc-card {
-  background: #ffffff !important;
-  border: 1px solid #e2e8f0 !important;
+  background: var(--color-bg-primary) !important;
+  border: 1px solid var(--color-border-primary) !important;
 }
 .sc-best {
-  border-color: #0d9488 !important;
+  border-color: var(--color-text-brand) !important;
 }
 .sc-head { display: flex; justify-content: space-between; align-items: center; }
-.sc-name { font-weight: 600; color: #0f172a; font-size: 14px; }
+.sc-name { font-weight: 600; color: var(--color-text-primary); font-size: 14px; }
 .sc-net {
-  font-size: 22px; font-weight: 700; color: #0d9488;
+  font-size: 22px; font-weight: 700; color: var(--color-text-brand);
   padding: 6px 0 12px;
 }
-.sc-net small { font-size: 12px; font-weight: 400; color: #94a3b8; margin-left: 2px; }
+.sc-net small { font-size: 12px; font-weight: 400; color: var(--color-text-tertiary); margin-left: 2px; }
 .sc-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -132,16 +139,16 @@ function confirmAdd() {
 .sc-grid > div {
   display: flex; justify-content: space-between; align-items: center;
   padding: 4px 0;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--color-bg-tertiary);
 }
-.sc-grid span { font-size: 11px; color: #94a3b8; }
-.sc-grid b { font-size: 12px; color: #1e293b; font-weight: 600; }
-.score-good { color: #059669; }
-.score-mid { color: #d97706; }
-.score-bad { color: #dc2626; }
+.sc-grid span { font-size: 11px; color: var(--color-text-tertiary); }
+.sc-grid b { font-size: 12px; color: var(--color-text-primary); font-weight: 600; }
+.score-good { color: var(--color-text-success); }
+.score-mid { color: var(--color-text-warning); }
+.score-bad { color: var(--color-text-danger); }
 
 .add-form { display: flex; flex-direction: column; gap: 14px; }
-.form-item label { font-size: 12px; color: #475569; font-weight: 500; display: flex; justify-content: space-between; margin-bottom: 4px; }
-.form-item label b { color: #0f172a; }
-.add-note { font-size: 11px; color: #94a3b8; margin: 0; }
+.form-item label { font-size: 12px; color: var(--color-text-secondary); font-weight: 500; display: flex; justify-content: space-between; margin-bottom: 4px; }
+.form-item label b { color: var(--color-text-primary); }
+.add-note { font-size: 11px; color: var(--color-text-tertiary); margin: 0; }
 </style>

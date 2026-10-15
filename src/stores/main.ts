@@ -4,12 +4,10 @@ import type { CityRule, WorkParams, CostParams, PersonalParams, ScenarioResult, 
 import { ScenarioService } from '../application/scenario/ScenarioService'
 import type { ScenarioInput } from '../application/scenario/ScenarioService'
 import { hydrateParams } from '../utils/params'
+import { CITY_OPTIONS } from '../data/cities'
 
-export const CITIES = [
-  { value: 'guangzhou', label: '广州' },
-  { value: 'shenzhen', label: '深圳' },
-  { value: 'dongguan', label: '东莞' },
-]
+// 城市清单以 src/data/cities.ts 注册表为准（含地图坐标）；规则文件在 public/rules/<value>.json
+export const CITIES = CITY_OPTIONS
 
 interface CustomPlan {
   id: string
@@ -195,5 +193,26 @@ export const useMainStore = defineStore('main', () => {
     return unwrap(eng.compare({ scenarios: list }))
   })
 
-  return { rule, loading, loadError, paramsRestored, work, costs, personal, customPlans, compensation, setCompensation, scenarios, comparison, loadRule, setCity, resetParams, addScenario, removeScenario }
+  // ---------- 主题（深/浅） ----------
+  // 默认深色（品牌基调）。初值读取 localStorage，其次跟随系统偏好。
+  const isDark = ref(false)
+  try {
+    const savedTheme = localStorage.getItem('theme')
+    isDark.value = savedTheme
+      ? savedTheme === 'dark'
+      : window.matchMedia('(prefers-color-scheme: dark)').matches
+  } catch {
+    /* localStorage 不可用时保持默认深色 */
+  }
+
+  function toggleTheme() {
+    isDark.value = !isDark.value
+    try {
+      localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
+    } catch {
+      /* 隐私模式下无法持久化，忽略 */
+    }
+  }
+
+  return { rule, loading, loadError, paramsRestored, work, costs, personal, customPlans, compensation, setCompensation, scenarios, comparison, isDark, toggleTheme, loadRule, setCity, resetParams, addScenario, removeScenario }
 })

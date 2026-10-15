@@ -6,6 +6,7 @@ import {
   projectRetirement,
   findMedicalTierRate,
 } from '../../../src/domain/benefit/calculator'
+import { issuanceMonthsForAge } from '../../../src/utils/issuanceMonths'
 import type { BenefitRule, ContributionBase } from '../../../src/domain/benefit/rules'
 
 // 测试用广州规则
@@ -299,6 +300,53 @@ describe('projectRetirement 退休测算', () => {
       expect(r1.value.months).toBe(720) // NaN currentAge -> 0，retireAge 60 -> 720 months
       expect(r2.value.months).toBe(0)   // NaN retireAge -> currentAge -> 0 months
       expect(Number(r3.value.personalAccount)).toBe(0)
+    }
+  })
+})
+
+describe('计发月数按退休年龄查表（国发〔2005〕38号附表）', () => {
+  it('60 岁为 139，50/55/65 岁分别取法定附表值', () => {
+    expect(issuanceMonthsForAge(60)).toBe(139)
+    expect(issuanceMonthsForAge(50)).toBe(195)
+    expect(issuanceMonthsForAge(55)).toBe(170)
+    expect(issuanceMonthsForAge(65)).toBe(101)
+  })
+
+  it('55 岁退休不使用 60 岁的 139：个账养老金必须更小', () => {
+    const at60 = projectRetirement(25, 60, yuanToCent(1200), 35, Rate.create(0.05), Rate.create(0.6), yuanToCent(9493))
+    const at55 = projectRetirement(25, 55, yuanToCent(1200), 30, Rate.create(0.05), Rate.create(0.6), yuanToCent(9493))
+    expect(at55.ok && at60.ok).toBe(true)
+    if (at55.ok && at60.ok) {
+      // 55 岁计发月数 170 > 139，同等账户余额下个人账户养老金更低
+      expect(Number(at55.value.personalPension)).toBeLessThan(Number(at60.value.personalPension))
+    }
+  })
+
+  it('非法/缺失年龄回落 60 岁口径 139，不产生 NaN', () => {
+    expect(issuanceMonthsForAge(NaN)).toBe(139)
+    expect(issuanceMonthsForAge(0)).toBe(139)
+  })
+})
+
+describe('缴满即停缴：账户只按缴费年限注入，之后仅复利', () => {
+  it('缴 15 年停缴的账户余额，必须小于缴至退休（同月缴额）', () => {
+    const full = projectRetirement(25, 60, yuanToCent(442), 35, Rate.create(0.03), Rate.create(0.6), yuanToCent(9493))
+    const stop15 = projectRetirement(25, 60, yuanToCent(442), 15, Rate.create(0.03), Rate.create(0.6), yuanToCent(9493))
+    expect(full.ok && stop15.ok).toBe(true)
+    if (full.ok && stop15.ok) {
+      expect(Number(stop15.value.personalAccount)).toBeLessThan(Number(full.value.personalAccount))
+      // 缴 15 年账户仍应大于「15×12×月缴×0.6」量级（未复利下界），确认停缴后仍在复利
+      const noInterestFloor = 15 * 12 * 442 * 0.6
+      expect(Number(stop15.value.personalAccount) / 100).toBeGreaterThan(noInterestFloor)
+    }
+  })
+
+  it('缴费年限超过到退休月数时按到退休的月数封顶，不会超缴', () => {
+    const clipped = projectRetirement(55, 60, yuanToCent(442), 30, Rate.create(0.03), Rate.create(0.6), yuanToCent(9493))
+    const exact = projectRetirement(55, 60, yuanToCent(442), 5, Rate.create(0.03), Rate.create(0.6), yuanToCent(9493))
+    expect(clipped.ok && exact.ok).toBe(true)
+    if (clipped.ok && exact.ok) {
+      expect(Number(clipped.value.personalAccount)).toBe(Number(exact.value.personalAccount))
     }
   })
 })

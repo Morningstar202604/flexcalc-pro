@@ -56,6 +56,8 @@ export interface RetirementRule {
   benefitBaseMonthly: number
   paymentIndex: number
   assumedAnnualReturn: number
+  /** 记入个人账户的费率（粤人社规〔2026〕14号第七条：20% 中 8% 记个人账户、12% 进统筹） */
+  personalAccountRate?: number
 }
 
 export interface IncomeRule {

@@ -1,5 +1,11 @@
 <template>
   <div>
+    <n-alert v-if="incomeUnverified" type="warning" :show-icon="true" style="margin-bottom: 12px">
+      <div><strong>{{ rule?.cityName }}的计价参数未核实</strong>：平台单价与计价系数属平台商业规则，无跨平台权威数据源，
+      当前各城市共用同一套占位值，<strong>不代表本城真实单价</strong>。</div>
+      <div style="margin-top:4px">请用你 APP 内的实际计价与流水核对后再看下面的数字——否则整条收入链都是假设。</div>
+    </n-alert>
+
     <n-grid :x-gap="12" :cols="2">
       <n-gi>
         <n-card title="收入结构拆解" class="card">
@@ -32,37 +38,123 @@
       </n-gi>
     </n-grid>
 
-    <n-grid :x-gap="12" :cols="2" style="margin-top: 12px">
-      <n-gi>
-        <n-card title="收入 vs 成本 vs 税后净收入" class="card">
-          <ChartBox :option="waterfallOption" :height="320" />
-        </n-card>
-      </n-gi>
-      <n-gi>
-        <n-card title="成本占比" class="card">
-          <ChartBox :option="costPieOption" :height="320" />
-        </n-card>
-      </n-gi>
-    </n-grid>
+    <!-- 广告口径校验：把招聘话术翻译成单量与工时 -->
+    <FoldCard
+      title="广告口径校验 — 招聘说月入过万，要跑成什么样？"
+      summary="把宣传数字翻译成单量与工时"
+      style="margin-top: 12px"
+    >
+      <div class="ad-claim">
+        <div class="ac-row">
+          <span class="ac-label">广告/招聘宣称的月收入（元）</span>
+          <n-input-number v-model:value="adClaim" :min="1000" :max="50000" :step="1000" size="small" style="width: 160px" />
+        </div>
 
-    <n-card title="年度收支预测" class="card" style="margin-top: 12px">
-      <ChartBox :option="yearlyOption" :height="320" />
-    </n-card>
+        <p v-if="!store.rule" class="ac-note">规则文件加载中，稍后自动换算…</p>
+        <template v-else-if="adSolve">
+          <div class="ac-result">
+            按本城计价与你的成本结构，达到 <b>¥{{ adClaim.toLocaleString() }}</b>/月净收入需要：
+            日均 <b>{{ adSolve.ordersPerDay }} 单</b> / 约 <b>{{ adSolve.hoursPerDay }} 小时</b>，
+            相当于当前强度的 <b>{{ adSolve.intensityRatio }}×</b>
+            （当前 {{ store.work.dailyOrders }}单 · {{ store.work.dailyHours }}h × {{ store.work.workDaysMonth }}天）。
+          </div>
+          <n-alert v-if="adSolve.hoursPerDay >= 12 || adSolve.intensityRatio >= 1.8" type="warning" :show-icon="true">
+            这个强度已超出常人体力可持续范围（行业普遍反映 12 小时以上连续跑单会显著抬升事故与健康风险）。
+            广告数字能到，但它不是「常态收入」——是透支出来的上限。
+          </n-alert>
+          <p v-else class="ac-note">
+            换算假设：全月 {{ store.work.workDaysMonth }} 天全勤、单量按同强度等比例增加、不含新增罚款与意外支出。
+            实际达成难度只高不低。
+          </p>
+        </template>
+        <n-alert v-else type="error" :show-icon="true">
+          在本城计价与你当前成本下，即便把强度拉到 {{ adMax.hours }} 小时/天、日均 {{ adMax.orders }} 单（已超出工具滑块上限），也到不了这个数。
+          这种广告通常意味着：其他城市/其他平台的计价、含未披露的补贴期、或发布方根本没跑过这一行。
+          让对方提供「达成者的实际流水」再谈。
+        </n-alert>
+      </div>
+
+      <n-divider style="margin: 12px 0" />
+      <RealityList :facts="incomeFacts" />
+    </FoldCard>
+
+    <!-- 图表分析：默认收起 -->
+    <FoldCard
+      title="图表分析"
+      summary="收支瀑布 · 成本占比 · 年度预测"
+      style="margin-top: 12px"
+    >
+      <n-grid :x-gap="12" cols="1 m:2" responsive="screen">
+        <n-gi>
+          <n-card title="收入 vs 成本 vs 税后净收入" class="card">
+            <ChartBox :option="waterfallOption" :height="320" />
+          </n-card>
+        </n-gi>
+        <n-gi>
+          <n-card title="成本占比" class="card">
+            <ChartBox :option="costPieOption" :height="320" />
+          </n-card>
+        </n-gi>
+      </n-grid>
+
+      <n-card title="年度收支预测" class="card" style="margin-top: 12px">
+        <ChartBox :option="yearlyOption" :height="320" />
+      </n-card>
+    </FoldCard>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { EChartsCoreOption } from 'echarts/core'
-import { NCard, NGrid, NGi } from 'naive-ui'
+import { NCard, NGrid, NGi, NInputNumber, NDivider, NAlert } from 'naive-ui'
 import { useMainStore } from '../../stores/main'
-import { axisX, axisY, GRID, C } from '../../utils/chart'
+import { axisX, axisY, GRID, chartColors } from '../../utils/chart'
+import { solveAdClaim, realityFactsBy } from '../../utils/reality'
+import { ScenarioService } from '../../application/scenario/ScenarioService'
 import ChartBox from '../ChartBox.vue'
 import SourceTag from '../SourceTag.vue'
+import FoldCard from '../FoldCard.vue'
+import RealityList from '../RealityList.vue'
 
 const store = useMainStore()
 const s = computed(() => store.scenarios[0])
 const rule = computed(() => store.rule)
+
+const incomeFacts = realityFactsBy(['ad-upper-bound', 'rookie-gap', 'penalty-reality', 'seasonal-gap'])
+
+/** 本城计价参数是否已核实：unverified 时在页顶显著提示，避免用户把占位单价当真实收入 */
+const incomeUnverified = computed(() => rule.value?.sources?.income?.confidence === 'unverified')
+
+/** 广告口径校验：用现有引擎做二分求解，单量与工时按同强度等比例放大 */
+const AD_MAX_HOURS = 16
+const adClaim = ref(10000)
+
+const adMax = computed(() => ({
+  hours: AD_MAX_HOURS,
+  orders: Math.floor(store.work.dailyOrders * (AD_MAX_HOURS / Math.max(1, store.work.dailyHours))),
+}))
+
+const adSolve = computed(() => {
+  if (!rule.value) return null
+  const svc = new ScenarioService(rule.value)
+  return solveAdClaim({
+    targetNetMonthly: adClaim.value,
+    currentOrdersPerDay: store.work.dailyOrders,
+    currentHoursPerDay: store.work.dailyHours,
+    maxHoursPerDay: AD_MAX_HOURS,
+    netAt: (orders, hours) => {
+      const r = svc.runScenario({
+        id: 'ad-probe',
+        name: 'ad-probe',
+        work: { ...store.work, dailyOrders: Math.round(orders), dailyHours: hours },
+        costs: store.costs,
+        personal: store.personal,
+      })
+      return r.ok ? r.value.netMonthly : 0
+    },
+  })
+})
 
 /** 安全除法：除数非有限或为 0 时返回 0，避免 Infinity 渲染到界面 */
 function safeDiv(numerator: number, denominator: number, digits: number): string {
@@ -71,8 +163,10 @@ function safeDiv(numerator: number, denominator: number, digits: number): string
 }
 
 const waterfallOption = computed<EChartsCoreOption>(() => {
+  void store.isDark // 主题依赖：浅深切换后重算配色
   const v = s.value
   if (!v) return {}
+  const P = chartColors()
   const gross = v.income.grossIncome
   const tax = Math.round(v.tax.annualTax / 12)
   const cost = v.costBreakdown.total
@@ -80,15 +174,15 @@ const waterfallOption = computed<EChartsCoreOption>(() => {
   return {
     tooltip: { trigger: 'axis' },
     grid: GRID,
-    xAxis: axisX(['月总收入', '减税', '减成本', '减社保', '月净收入']),
-    yAxis: axisY(),
+    xAxis: axisX(['月总收入', '减税', '减成本', '减社保', '月净收入'], P),
+    yAxis: axisY(P),
     series: [{
       type: 'bar', data: [
-        { value: gross, itemStyle: { color: C.primary } },
-        { value: -tax, itemStyle: { color: C.warn } },
-        { value: -cost, itemStyle: { color: C.danger } },
-        { value: -v.benefit.totalMonthly, itemStyle: { color: C.light } },
-        { value: net, itemStyle: { color: C.safe } }
+        { value: gross, itemStyle: { color: P.primary } },
+        { value: -tax, itemStyle: { color: P.warn } },
+        { value: -cost, itemStyle: { color: P.danger } },
+        { value: -v.benefit.totalMonthly, itemStyle: { color: P.light } },
+        { value: net, itemStyle: { color: P.safe } }
       ],
       barWidth: '40%'
     }]
@@ -96,8 +190,11 @@ const waterfallOption = computed<EChartsCoreOption>(() => {
 })
 
 const costPieOption = computed<EChartsCoreOption>(() => {
+  void store.isDark
   const c = s.value?.costs
   if (!c) return {}
+  const P = chartColors()
+  const palette = [P.primary, P.warn, P.danger, P.safe, P.gray, P.light]
   const data = [
     { name: '油费/电费', value: c.fuelCostMonth + c.electricityCostMonth },
     { name: '维护', value: c.maintenanceMonth },
@@ -107,36 +204,74 @@ const costPieOption = computed<EChartsCoreOption>(() => {
     { name: '罚款', value: c.trafficFineMonth },
     { name: '折旧', value: c.vehicleDepreciationMonth },
     { name: '其他', value: c.otherCostMonth },
-  ].filter(d => d.value > 0)
+  ].filter(d => d.value > 0).map((d, i) => ({ ...d, itemStyle: { color: palette[i % palette.length] } }))
   return {
     tooltip: { trigger: 'item' },
-    legend: { orient: 'vertical', right: '5%', top: 'center', textStyle: { fontSize: 11, color: '#64748b' } },
+    legend: { orient: 'vertical', right: '5%', top: 'center', textStyle: { fontSize: 11, color: P.legendText } },
     series: [{
       type: 'pie', radius: ['40%', '68%'], center: ['38%', '50%'],
-      label: { show: true, fontSize: 11, color: '#475569' },
+      label: { show: true, fontSize: 11, color: P.axisLabel },
       data
     }]
   }
 })
 
 const yearlyOption = computed<EChartsCoreOption>(() => {
+  void store.isDark
   const v = s.value
   if (!v) return {}
+  const P = chartColors()
   const factors = [0.93, 0.88, 0.98, 1.03, 1.07, 1.10, 1.13, 1.10, 1.05, 0.97, 0.90, 0.85]
   const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月']
   const incomes = factors.map(f => Math.round(v.income.grossIncome * f))
   const costs = factors.map(f => Math.round(v.costBreakdown.total * f))
   return {
     tooltip: { trigger: 'axis' },
-    legend: { data: ['月收入', '运营成本', '净收入'], textStyle: { fontSize: 11, color: '#64748b' } },
+    legend: { data: ['月收入', '运营成本', '净收入'], textStyle: { fontSize: 11, color: P.legendText } },
     grid: GRID,
-    xAxis: axisX(months),
-    yAxis: axisY(),
+    xAxis: axisX(months, P),
+    yAxis: axisY(P),
     series: [
-      { name: '月收入', type: 'bar', data: incomes, itemStyle: { color: C.primary }, barWidth: '25%' },
-      { name: '运营成本', type: 'bar', data: costs, itemStyle: { color: C.warn }, barWidth: '25%' },
-      { name: '净收入', type: 'line', data: incomes.map((inc, i) => inc - costs[i] - Math.round(v.tax.annualTax / 12)), smooth: true, lineStyle: { color: C.safe, width: 2 }, itemStyle: { color: C.safe } }
+      { name: '月收入', type: 'bar', data: incomes, itemStyle: { color: P.primary }, barWidth: '25%' },
+      { name: '运营成本', type: 'bar', data: costs, itemStyle: { color: P.warn }, barWidth: '25%' },
+      { name: '净收入', type: 'line', data: incomes.map((inc, i) => inc - costs[i] - Math.round(v.tax.annualTax / 12)), smooth: true, lineStyle: { color: P.safe, width: 2 }, itemStyle: { color: P.safe } }
     ]
   }
 })
 </script>
+
+<style scoped>
+.ad-claim {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ac-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ac-label {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.ac-result {
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+.ac-result b {
+  color: var(--color-text-primary);
+  font-family: var(--font-family-num);
+}
+.ac-note {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  line-height: 1.6;
+  margin: 0;
+}
+</style>

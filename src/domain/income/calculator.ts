@@ -41,7 +41,9 @@ export function calcIncome(rule: IncomeRule, params: WorkParams): IncomeBreakdow
   // 日基础收入（用于补贴计算）
   const dailyBase = safeDiv(basePay, days)
   
-  // 峰时补贴折算：峰时总时长 ÷ 日均工时，上限 1
+  // 峰时补贴折算：峰时总时长 ÷ 日均工时，上限 1。
+  // 短工时（兼职）取 1：跑单者按理性会挑高峰时段，高峰全覆盖；
+  // 长工时按 峰时/工时 线性折算（假设其余工时分布在非峰时段）。
   const peakTotalHours = peakHoursTotal(rule.timeSubsidy.peakHours)
   const peakShare = Math.min(1, safeDiv(peakTotalHours, hours))
   const peakSubsidyDaily = dailyBase * (rule.timeSubsidy.multiplier - 1) * peakShare

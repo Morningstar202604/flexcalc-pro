@@ -1,5 +1,6 @@
 ﻿import { Cent, Rate, addCent, mulCentRate, nonNegCent, safeCent, safeRate, divCent, maxCent, minCent } from '../shared/value-objects'
 import type { BenefitRule, BenefitBreakdown, BenefitItem, RetirementProjection, BenefitError, ContributionBase, MedicalTier } from './rules'
+import { issuanceMonthsForAge } from './rules'
 import { Result, ok, err } from '../shared/result'
 
 /** 解析缴费基数：用户自选优先；未选或非法时回落到申报收入夹取，再夹到法定上下限 */
@@ -62,7 +63,7 @@ export function calcMonthly(
 
 /** 退休测算：基础养老金 + 个人账户养老金
  *  基础养老金 = 计发基数 × (1 + 缴费指数) / 2 × 缴费年限 × 1%
- *  个人账户养老金 = 储存额 / 139（60岁计发月数）
+ *  个人账户养老金 = 储存额 / 计发月数（国发〔2005〕38号附表按退休年龄查，60 岁为 139）
  */
 export function projectRetirement(
   currentAge: number,
@@ -82,8 +83,13 @@ export function projectRetirement(
     : Cent.create(0)
 
   const months = Math.max(0, Math.round((safeRetire - safeAge) * 12))
+  // 实际缴费月数：按缴费年限计，且不得超过「退休年龄-当前年龄」的月数。
+  // 缴满即停缴，但账户余额继续按记账利率滚存至退休领取日——
+  // 旧实现拿"到退休的整段月数"当缴费月数，会把"只缴 15 年"的方案
+  // 按 35 年缴费滚账户，个账养老金虚高。
+  const contributionMonths = Math.min(months, Math.max(0, safeYears) * 12)
 
-  // 个人账户累积：月复利
+  // 个人账户累积：缴费期内月复利注入，缴费期后仅复利
   const safeReturn = Number.isFinite(Number(annualReturn))
     ? Math.max(-1, Math.min(1, Number(annualReturn)))
     : 0.05
@@ -92,7 +98,7 @@ export function projectRetirement(
   let balance = 0
   const monthlyContributionNum = Number(contribution)
   for (let i = 0; i < months; i++) {
-    balance = balance * (1 + monthlyRate) + monthlyContributionNum
+    balance = balance * (1 + monthlyRate) + (i < contributionMonths ? monthlyContributionNum : 0)
     // 防止溢出
     if (!Number.isFinite(balance) || balance > 1e15) {
       balance = 1e15
@@ -107,9 +113,10 @@ export function projectRetirement(
   const basePensionNum = Number(benefitBaseMonthly) * (1 + idx) / 2 * safeYears * 0.01
   const basePension = safeCent(Math.round(basePensionNum))
 
-  // 个人账户养老金：60岁计发月数 139
+  // 个人账户养老金：计发月数按退休年龄查表（国发〔2005〕38号附表，60 岁 = 139）
+  const issuanceMonths = issuanceMonthsForAge(safeRetire)
   const personalPension = personalAccount > Cent.create(0)
-    ? safeCent(Math.round(Number(personalAccount) / 139))
+    ? safeCent(Math.round(Number(personalAccount) / issuanceMonths))
     : Cent.create(0)
 
   const totalPension = nonNegCent(addCent(basePension, personalPension))

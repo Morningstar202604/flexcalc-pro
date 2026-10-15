@@ -1,5 +1,7 @@
 <template>
   <div class="dashboard">
+    <OnboardingHint />
+
     <!-- KPI Row -->
     <div class="kpi-row">
       <div class="stat">
@@ -47,36 +49,48 @@
       </div>
     </n-card>
 
-    <!-- Charts Row -->
-    <n-grid :x-gap="12" cols="1 m:2" responsive="screen" style="margin-top: 12px">
-      <n-gi>
-        <n-card title="各方案净收入对比" class="card">
-          <ChartBox :option="barOption" :height="300" />
-        </n-card>
-      </n-gi>
-      <n-gi>
-        <n-card title="收支结构分析" class="card">
-          <ChartBox :option="pieOption" :height="300" />
-        </n-card>
-      </n-gi>
-    </n-grid>
+    <!-- 图表分析：默认收起，点开才渲染 -->
+    <FoldCard
+      title="收入与结构图表"
+      summary="净收入对比 · 收支结构"
+      style="margin-top: 12px"
+    >
+      <n-grid :x-gap="12" cols="1 m:2" responsive="screen">
+        <n-gi>
+          <n-card title="各方案净收入对比" class="card">
+            <ChartBox :option="barOption" :height="300" />
+          </n-card>
+        </n-gi>
+        <n-gi>
+          <n-card title="收支结构分析" class="card">
+            <ChartBox :option="pieOption" :height="300" />
+          </n-card>
+        </n-gi>
+      </n-grid>
+    </FoldCard>
 
-    <!-- Insights + Ranking -->
-    <n-grid :x-gap="12" cols="1 m:3" responsive="screen" style="margin-top: 12px">
-      <n-gi :span="1">
-        <n-card title="决策洞察" class="card">
-          <ul class="insight-list">
-            <li v-for="(insight, i) in insights" :key="i">{{ insight }}</li>
-          </ul>
-          <n-empty v-if="!insights.length" description="调整参数后生成决策建议" style="padding: 20px 0" />
-        </n-card>
-      </n-gi>
-      <n-gi :span="2">
-        <n-card title="方案排行榜" class="card">
-          <n-data-table :data="rankedScenarios" :columns="rankCols" :bordered="false" :single-line="false" size="small" />
-        </n-card>
-      </n-gi>
-    </n-grid>
+    <!-- 洞察 + 排行：默认收起 -->
+    <FoldCard
+      title="决策洞察与方案排行"
+      :summary="`${insights.length} 条洞察 · ${rankedScenarios.length} 个方案`"
+      style="margin-top: 12px"
+    >
+      <n-grid :x-gap="12" cols="1 m:3" responsive="screen">
+        <n-gi :span="1">
+          <n-card title="决策洞察" class="card">
+            <ul class="insight-list">
+              <li v-for="(insight, i) in insights" :key="i">{{ insight }}</li>
+            </ul>
+            <n-empty v-if="!insights.length" description="调整参数后生成决策建议" style="padding: 20px 0" />
+          </n-card>
+        </n-gi>
+        <n-gi :span="2">
+          <n-card title="方案排行榜" class="card">
+            <n-data-table :data="rankedScenarios" :columns="rankCols" :bordered="false" :single-line="false" size="small" />
+          </n-card>
+        </n-gi>
+      </n-grid>
+    </FoldCard>
   </div>
 </template>
 
@@ -86,9 +100,11 @@ import { useRouter } from 'vue-router'
 import type { EChartsCoreOption } from 'echarts/core'
 import { NCard, NGrid, NGi, NEmpty, NDataTable, NButton, type DataTableColumns } from 'naive-ui'
 import { useMainStore } from '../stores/main'
-import { axisX, axisY, GRID, SERIES_COLORS, C } from '../utils/chart'
+import { axisX, axisY, GRID, chartColors } from '../utils/chart'
 import { scoreTier, scoreLevel, TIER_COLORS } from '../utils/score'
 import ChartBox from '../components/ChartBox.vue'
+import FoldCard from '../components/FoldCard.vue'
+import OnboardingHint from '../components/OnboardingHint.vue'
 
 const router = useRouter()
 const store = useMainStore()
@@ -127,35 +143,39 @@ const rankCols: DataTableColumns<RankRow> = [
 ]
 
 const barOption = computed<EChartsCoreOption>(() => {
+  void store.isDark // 主题依赖：切换深浅色时重算配色并触发图表重绘
   const comp = store.comparison
   if (!comp) return {}
+  const P = chartColors()
   return {
     tooltip: { trigger: 'axis' },
     grid: { ...GRID, bottom: '14%' },
-    xAxis: axisX(comp.ranking.map(r => r.label)),
-    yAxis: axisY(),
+    xAxis: axisX(comp.ranking.map(r => r.label), P),
+    yAxis: axisY(P),
     series: [{
       type: 'bar',
-      data: comp.ranking.map((r, i) => ({ value: r.netAnnual, itemStyle: { color: SERIES_COLORS[i] || '#cbd5e1' } })),
+      data: comp.ranking.map((r, i) => ({ value: r.netAnnual, itemStyle: { color: P.series[i] || P.light } })),
       barWidth: '45%',
     }]
   }
 })
 
 const pieOption = computed<EChartsCoreOption>(() => {
+  void store.isDark
   const best = store.comparison?.best
   if (!best) return {}
+  const P = chartColors()
   return {
     tooltip: { trigger: 'item' },
-    legend: { orient: 'vertical', right: '5%', top: 'center', textStyle: { fontSize: 11, color: '#64748b' } },
+    legend: { orient: 'vertical', right: '5%', top: 'center', textStyle: { fontSize: 11, color: P.legendText } },
     series: [{
       type: 'pie', radius: ['48%', '72%'], center: ['38%', '50%'], avoidLabelOverlap: false,
-      label: { show: true, fontSize: 11 },
+      label: { show: true, fontSize: 11, color: P.axisLabel },
       data: [
-        { value: best.netMonthly, name: '实得净收入', itemStyle: { color: C.primary } },
-        { value: best.costBreakdown.total, name: '运营成本', itemStyle: { color: C.warn } },
-        { value: Math.round(best.tax.annualTax / 12), name: '个税', itemStyle: { color: C.gray } },
-        { value: best.benefit.totalMonthly, name: '社保', itemStyle: { color: C.light } }
+        { value: best.netMonthly, name: '实得净收入', itemStyle: { color: P.primary } },
+        { value: best.costBreakdown.total, name: '运营成本', itemStyle: { color: P.warn } },
+        { value: Math.round(best.tax.annualTax / 12), name: '个税', itemStyle: { color: P.gray } },
+        { value: best.benefit.totalMonthly, name: '社保', itemStyle: { color: P.light } }
       ]
     }]
   }
@@ -169,16 +189,16 @@ const pieOption = computed<EChartsCoreOption>(() => {
   width: 160px; flex-shrink: 0;
   display: flex; flex-direction: column; align-items: center;
   padding: 12px;
-  border-right: 1px solid #e2e8f0;
+  border-right: 1px solid var(--color-border-primary);
 }
-.rs-label { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
-.rs-value { font-size: 28px; font-weight: 700; color: #0f172a; line-height: 1.2; margin: 4px 0; }
-.rs-bar { width: 100%; height: 6px; background: #f1f5f9; border-radius: 3px; overflow: hidden; margin: 4px 0; }
+.rs-label { font-size: 11px; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; }
+.rs-value { font-size: 28px; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; margin: 4px 0; }
+.rs-bar { width: 100%; height: 6px; background: var(--color-bg-tertiary); border-radius: 3px; overflow: hidden; margin: 4px 0; }
 .rs-bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
-.rs-level { font-size: 12px; color: #64748b; margin-top: 2px; }
+.rs-level { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
 .rights-flags { flex: 1; display: flex; flex-direction: column; }
-.rf-title { font-size: 11px; font-weight: 600; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.rf-title { font-size: 11px; font-weight: 600; color: var(--color-text-primary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
 .rf-list { flex: 1; display: flex; flex-direction: column; gap: 3px; max-height: 120px; overflow-y: auto; }
-.rf-item { font-size: 12px; color: #64748b; line-height: 1.5; display: flex; align-items: flex-start; gap: 6px; }
-.rf-dot { width: 4px; height: 4px; border-radius: 50%; background: #d97706; flex-shrink: 0; margin-top: 7px; }
+.rf-item { font-size: 12px; color: var(--color-text-secondary); line-height: 1.5; display: flex; align-items: flex-start; gap: 6px; }
+.rf-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--color-text-warning); flex-shrink: 0; margin-top: 7px; }
 </style>

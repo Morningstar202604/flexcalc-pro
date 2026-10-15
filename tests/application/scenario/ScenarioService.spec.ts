@@ -174,4 +174,30 @@ describe('ScenarioService 集成测试', () => {
   it('constructor: 无 rule 抛出错误', () => {
     expect(() => new ScenarioService(null as unknown as CityRule)).toThrow();
   });
+
+  /**
+   * 评级底线由本城最低工资推导，且按「缴社保前收入能力」判定：
+   * 低于最低工资 = risky；超过最低工资 viable；超过 2 倍才 recommended。
+   * 同步验证换城后底线确实跟着变（广州 2680、东莞 2300）。
+   */
+  it('runScenario: 评级底线随本城最低工资变化，而非固定 7000/4500', () => {
+    const lowNet = { ...work, dailyOrders: 20, dailyHours: 5 };
+    const gz = unwrap(service.runScenario({ id: 'gz', name: 'gz', work: lowNet, costs, personal: { ...personal, hasSocialInsurance: true } }));
+    const gzCapacity = gz.netMonthly + gz.benefit.totalMonthly;
+    const gzFloor = rule.minimumWage.monthly;
+    if (gzCapacity <= gzFloor) expect(gz.recommendation).toBe('risky');
+    else if (gzCapacity <= gzFloor * 2) expect(gz.recommendation).toBe('viable');
+    else expect(gz.recommendation).toBe('recommended');
+
+    // 同一组参数在最低工资更低的城市，判定所用底线不同（东莞 2300 ≠ 广州 2680）
+    const dgRule = JSON.parse(readFileSync('public/rules/dongguan.json', 'utf8')) as CityRule;
+    expect(dgRule.minimumWage.monthly).not.toBe(gzFloor);
+    const dgService = new ScenarioService(dgRule);
+    const dg = unwrap(dgService.runScenario({ id: 'dg', name: 'dg', work: { ...lowNet, city: 'dongguan' }, costs, personal: { ...personal, hasSocialInsurance: true } }));
+    const dgCapacity = dg.netMonthly + dg.benefit.totalMonthly;
+    const dgFloor = dgRule.minimumWage.monthly;
+    if (dgCapacity <= dgFloor) expect(dg.recommendation).toBe('risky');
+    else if (dgCapacity <= dgFloor * 2) expect(dg.recommendation).toBe('viable');
+    else expect(dg.recommendation).toBe('recommended');
+  });
 });

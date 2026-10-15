@@ -118,6 +118,7 @@
     "nonFullTimeHourly": 18.9
   },
   "retirement": {
+    "personalAccountRate": 0.08,
     "benefitBaseMonthly": 9493,
     "paymentIndex": 0.6,
     "assumedAnnualReturn": 0.03
@@ -128,11 +129,36 @@
     "itrIncomeRate": 0.1,
     "itrDeductionMonthly": 5000,
     "bizTaxTable": [
-      { "min": 0, "max": 30000, "rate": 0.05, "deduction": 0 },
-      { "min": 30000, "max": 90000, "rate": 0.1, "deduction": 1500 },
-      { "min": 90000, "max": 300000, "rate": 0.2, "deduction": 10500 },
-      { "min": 300000, "max": 500000, "rate": 0.3, "deduction": 40500 },
-      { "min": 500000, "max": 999999999, "rate": 0.35, "deduction": 65500 }
+      {
+        "min": 0,
+        "max": 30000,
+        "rate": 0.05,
+        "deduction": 0
+      },
+      {
+        "min": 30000,
+        "max": 90000,
+        "rate": 0.1,
+        "deduction": 1500
+      },
+      {
+        "min": 90000,
+        "max": 300000,
+        "rate": 0.2,
+        "deduction": 10500
+      },
+      {
+        "min": 300000,
+        "max": 500000,
+        "rate": 0.3,
+        "deduction": 40500
+      },
+      {
+        "min": 500000,
+        "max": 999999999,
+        "rate": 0.35,
+        "deduction": 65500
+      }
     ]
   },
   "sources": {
@@ -151,7 +177,8 @@
       "url": "https://hrss.sz.gov.cn/szsi/sbjxxgk/zcfggfxwj/zcfg/sbzs/content/post_12855003.html",
       "effectiveFrom": "2026-05-01",
       "retrievedAt": "2026-10-12",
-      "confidence": "official"
+      "confidence": "official",
+      "note": "东莞按广东省灵活就业人员参加企业职工基本养老保险办法执行：缴费比例 20%，其中 12% 记入统筹基金、8% 记入个人账户；基数在参保地（东莞）企业职保上下限范围内自选（粤人社规〔2026〕14号第七条、第六条）。"
     },
     "medical": {
       "title": "2026年度医疗保险缴费基数和费率表（上半年）",
@@ -221,7 +248,7 @@
       "effectiveFrom": "2025-01-01 至 2026-12-31 全省统一使用 9493 元/月",
       "retrievedAt": "2026-10-12",
       "confidence": "derived",
-      "note": "东莞属广东省（不含深圳）统一口径，计发基数 9493 元/月，深圳单列 11293 元不得套用。该数值见于省市人社部门公开答复与多家一致报道，尚未回溯到规范性文件原文文号；60岁计发月数139为法定值；收益率为自设假设"
+      "note": "东莞属广东省（不含深圳）统一口径，计发基数 9493 元/月，深圳单列 11293 元不得套用。该数值见于省市人社部门公开答复与多家一致报道，尚未回溯到规范性文件原文文号；60岁计发月数139为法定值；收益率为自设假设。计发月数按 国发〔2005〕38号附表随退休年龄查表（40/45/50/55/60/65/70 岁 → 233/216/195/170/139/101/56），不再写死 139；投资收益率 3% 为自设假设，必须向用户标注"
     }
   }
 }

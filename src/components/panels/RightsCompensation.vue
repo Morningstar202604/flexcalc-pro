@@ -2,13 +2,29 @@
   <div>
     <!-- Header -->
     <n-card title="权益补偿计算器" class="card">
-      <p class="desc">
-        依据《劳动合同法》《工伤保险条例》《广东省工伤保险条例》（2019修正）《劳动法》及人社部发〔2021〕56号等现行规定测算。
-        合计仅计入可直接主张项，需行政责令、劳动关系认定等前置条件的金额单列。所有结果不构成法律意见，实际维权请咨询12348法律援助热线或当地工会法律援助。
-      </p>
-      <n-alert type="warning" :show-icon="true" style="margin-top: 8px">
-        多数外卖骑手与平台被认定为"不完全符合确立劳动关系情形"，此时本页以劳动关系为前提的项目（加班费、二倍工资、违法解除赔偿金、工伤保险待遇）可能全部不适用，需改走民事服务合同/侵权路径。请先确认用工关系定性。
-      </n-alert>
+      <FoldCard title="测算依据与用工关系前提（务必先读）">
+        <p class="desc">
+          依据《劳动合同法》《工伤保险条例》《广东省工伤保险条例》（2019修正）《劳动法》及人社部发〔2021〕56号等现行规定测算。
+          合计仅计入可直接主张项，需行政责令、劳动关系认定等前置条件的金额单列。所有结果不构成法律意见，实际维权请咨询12348法律援助热线或当地工会法律援助。
+        </p>
+        <n-alert type="warning" :show-icon="true" style="margin-top: 8px">
+          多数外卖骑手与平台被认定为"不完全符合确立劳动关系情形"，此时本页以劳动关系为前提的项目（加班费、二倍工资、违法解除赔偿金、工伤保险待遇）可能全部不适用，需改走民事服务合同/侵权路径。请先确认用工关系定性。
+        </n-alert>
+      </FoldCard>
+    </n-card>
+
+    <!-- 维权现实核查：先看概率，再谈金额 -->
+    <n-card class="card" style="margin-top: 12px">
+      <FoldCard
+        title="维权现实核查 — 先说真话，再算金额"
+        :summary="conditionalSummary ? `条件项 ${conditionalSummary.count} 笔 / ¥${conditionalSummary.total.toLocaleString()}` : '7 条硬事实'"
+      >
+        <n-alert v-if="conditionalSummary" type="warning" :show-icon="true" style="margin-bottom: 12px">
+          本情景中，需要前置条件才成立的「条件项」共 {{ conditionalSummary.count }} 笔、合计 ¥{{ conditionalSummary.total.toLocaleString() }}。
+          在劳动关系未认定、行政程序未启动之前，它们大概率不会实际到手——下方第 1、2 条说的就是这件事。
+        </n-alert>
+        <RealityList :facts="rightsFacts" />
+      </FoldCard>
     </n-card>
 
     <!-- Scenario selector -->
@@ -269,6 +285,9 @@ import { ref, reactive, computed, inject, watch, type Ref } from 'vue'
 import { NCard, NAlert, NInputNumber, NSelect, NSlider, NSwitch, NButton, NTable, NGrid, NGi, NDivider, NSteps, NStep, NTooltip, NTag, useMessage } from 'naive-ui'
 import { useMainStore } from '../../stores/main'
 import SourceTag from '../SourceTag.vue'
+import FoldCard from '../FoldCard.vue'
+import RealityList from '../RealityList.vue'
+import { realityFactsBy } from '../../utils/reality'
 import type { CompensationItem, CompensationLegalRef, CompensationResult } from '../../types'
 
 const message = useMessage()
@@ -304,6 +323,18 @@ type LegalRef = CompensationLegalRef
 type CalcResult = CompensationResult
 
 const result = ref<CalcResult | null>(null)
+
+/** 维权现实核查：把本情景的「条件项」金额抽出来，与硬事实一并展示，先压低预期再谈金额 */
+const rightsFacts = realityFactsBy([
+  'relation-gate', 'conditional-gap', 'evidence-hold',
+  'limitation-clock', 'time-cost', 'enforcement', 'account-risk',
+])
+const conditionalSummary = computed(() => {
+  if (!result.value) return null
+  const items = result.value.items.filter(i => i.kind === 'conditional' && i.amount > 0)
+  if (!items.length) return null
+  return { count: items.length, total: items.reduce((s, i) => s + i.amount, 0) }
+})
 
 const claim = (name: string, amount: number, note: string): CalcItem => ({ name, amount: Math.round(amount), note, kind: 'claim' })
 const cond = (name: string, amount: number, note: string): CalcItem => ({ name, amount: Math.round(amount), note, kind: 'conditional' })
@@ -507,7 +538,7 @@ calc()
   gap: 8px;
 }
 .scenario-card {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border-primary);
   border-radius: 6px;
   padding: 12px 8px;
   cursor: pointer;
@@ -515,49 +546,49 @@ calc()
   transition: border-color 0.15s, background 0.15s;
   user-select: none;
 }
-.scenario-card:hover { border-color: #0d9488; }
-.scenario-card.active { border-color: #0d9488; background: rgba(13,148,136,0.04); }
-.sc-icon { width: 28px; height: 28px; margin: 0 auto 6px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; color: #64748b; }
-.scenario-card.active .sc-icon { background: #0d9488; color: #ffffff; }
-.sc-name { font-size: 12px; font-weight: 600; color: #0f172a; margin-bottom: 2px; }
-.sc-basis { font-size: 10px; color: #94a3b8; }
+.scenario-card:hover { border-color: var(--color-text-brand); }
+.scenario-card.active { border-color: var(--color-text-brand); background: rgba(13,148,136,0.04); }
+.sc-icon { width: 28px; height: 28px; margin: 0 auto 6px; border-radius: 50%; background: var(--color-bg-tertiary); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; color: var(--color-text-secondary); }
+.scenario-card.active .sc-icon { background: var(--color-primary-500); color: var(--color-text-inverse); }
+.sc-name { font-size: 12px; font-weight: 600; color: var(--color-text-primary); margin-bottom: 2px; }
+.sc-basis { font-size: 10px; color: var(--color-text-tertiary); }
 
 .form-section { display: flex; flex-direction: column; gap: 10px; }
-.form-item label { font-size: 12px; color: #475569; font-weight: 500; display: block; margin-bottom: 3px; }
-.form-note { font-size: 11px; color: #94a3b8; margin-top: 4px; margin-bottom: 0; line-height: 1.5; }
+.form-item label { font-size: 12px; color: var(--color-text-secondary); font-weight: 500; display: block; margin-bottom: 3px; }
+.form-note { font-size: 11px; color: var(--color-text-tertiary); margin-top: 4px; margin-bottom: 0; line-height: 1.5; }
 
-.result-empty { text-align: center; color: #94a3b8; padding: 40px 0; font-size: 13px; }
+.result-empty { text-align: center; color: var(--color-text-tertiary); padding: 40px 0; font-size: 13px; }
 
 .result-total {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 10px 16px; background: #0d9488; color: #ffffff;
+  padding: 10px 16px; background: var(--color-primary-500); color: var(--color-text-inverse);
   border-radius: 6px; margin-bottom: 12px;
 }
 .result-total span { font-size: 12px; opacity: 0.85; }
 .result-total strong { font-size: 20px; }
 .result-conditional {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 8px 16px; background: #fffbeb;
-  border: 1px solid #fde68a; border-radius: 6px; margin-bottom: 12px;
+  padding: 8px 16px; background: var(--color-warning-50);
+  border: 1px solid var(--color-warning-200); border-radius: 6px; margin-bottom: 12px;
 }
-.result-conditional span { font-size: 11px; color: #92400e; line-height: 1.4; max-width: 60%; }
-.result-conditional strong { font-size: 15px; color: #b45309; }
+.result-conditional span { font-size: 11px; color: var(--color-text-warning); line-height: 1.4; max-width: 60%; }
+.result-conditional strong { font-size: 15px; color: var(--color-text-warning); }
 .kind-tag { margin-right: 4px; }
 
-.info-icon { color: #0d9488; cursor: help; font-size: 11px; margin-left: 2px; }
-.text-muted { color: #cbd5e1; }
+.info-icon { color: var(--color-text-brand); cursor: help; font-size: 11px; margin-left: 2px; }
+.text-muted { color: var(--color-border-secondary); }
 
 .legal-refs { display: flex; flex-direction: column; gap: 3px; }
-.lr-title { font-size: 11px; font-weight: 600; color: #0f172a; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-.lr-item { font-size: 11px; color: #64748b; padding: 3px 0; border-left: 2px solid #e2e8f0; padding-left: 8px; }
+.lr-title { font-size: 11px; font-weight: 600; color: var(--color-text-primary); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.lr-item { font-size: 11px; color: var(--color-text-secondary); padding: 3px 0; border-left: 2px solid var(--color-border-primary); padding-left: 8px; }
 
 .action-buttons { display: flex; gap: 8px; }
 
 .hotline-bar {
   display: flex; gap: 14px; padding-top: 8px;
-  border-top: 1px solid #f1f5f9; margin-top: 6px;
-  font-size: 11px; color: #64748b; flex-wrap: wrap;
+  border-top: 1px solid var(--color-bg-tertiary); margin-top: 6px;
+  font-size: 11px; color: var(--color-text-secondary); flex-wrap: wrap;
 }
 .hotline-bar span{white-space:nowrap;}
-.hotline-bar b { color: #0f172a; }
+.hotline-bar b { color: var(--color-text-primary); }
 </style>

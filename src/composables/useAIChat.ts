@@ -2,6 +2,7 @@ import { ref, onScopeDispose } from 'vue'
 import type { ScenarioResult } from '../types'
 import { scoreTier, scoreLevel } from '../utils/score'
 import { validateEndpoint } from '../utils/endpoint'
+import { searchKnowledge, kbContextForPrompt, KB_TYPE_LABELS } from '../utils/knowledge'
 
 export interface ChatMessage {
   id: string
@@ -9,7 +10,8 @@ export interface ChatMessage {
   content: string
   timestamp: number
   isStreaming?: boolean
-  source?: 'ai'
+  /** ai = 大模型回答；kb = 本地知识库检索应答（离线） */
+  source?: 'ai' | 'kb'
 }
 
 export interface ApiConfig {
@@ -154,12 +156,33 @@ export function useAIChat() {
     return s.benefit.items.filter(i => i.name === '养老保险' || i.name === '医疗保险').reduce((sum, i) => sum + i.monthly, 0)
   }
 
+  /**
+   * 离线知识库应答：先检索本地知识库（政策/手册/现实核查，均带官方链接），
+   * 命中即按条目原文作答；未命中返回 null，由规则引擎兜底。
+   */
+  function kbReply(question: string): string | null {
+    const hits = searchKnowledge(question, { limit: 3 })
+    if (!hits.length) return null
+    const blocks = hits.map(h => {
+      const e = h.entry
+      const nums = e.numbers.slice(0, 3).map(n => `${n.label} ${n.value}`).join('；')
+      const doc = e.docNo ? `（${e.docNo}）` : ''
+      const link = e.links[0] ? `\n原文：${e.links[0].url}` : ''
+      return `【${KB_TYPE_LABELS[e.type]}】${e.title}${doc}\n${e.summary}${nums ? `\n${nums}` : ''}${link}`
+    })
+    return `本地知识库检索到 ${hits.length} 条相关内容（离线，附官方链接）：\n\n${blocks.join('\n\n')}\n\n提示：以上为知识库条目原文摘录；要结合你自己的数据做决策分析，请在「API 设置」启用 AI 大模型。`
+  }
+
   async function sendOnline(question: string, context: string) {
     // Authorization 头会发往用户自填的地址，校验失败必须直接拒，不发请求
     const check = validateEndpoint(config.value.endpoint)
     if (!check.ok) throw new Error(check.error ?? 'Endpoint 不合法')
 
-    const sysPrompt = `你是"灵算Pro"的决策助手，面向灵活就业者（外卖骑手、网约车司机等）。根据用户当前测算数据给出具体可操作建议。硬性要求：不超过205字；只依据下列数据与用户问题作答；不得编造法律法规名称、文号、税率或政策文件；涉及法律或税务结论时必须提示以官方机构或专业人士意见为准。以下是用户数据：\n${context}`
+    // RAG 雏形：发送前先做本地知识库检索，把命中条目作为上下文注入，
+    // 降低模型编造文号/政策的概率；检索在本地完成，不额外联网。
+    const kbCtx = kbContextForPrompt(question, 3)
+
+    const sysPrompt = `你是"灵算Pro"的决策助手，面向灵活就业者（外卖骑手、网约车司机等）。根据用户当前测算数据给出具体可操作建议。硬性要求：不超过205字；只依据下列数据与用户问题作答；不得编造法律法规名称、文号、税率或政策文件；涉及法律或税务结论时必须提示以官方机构或专业人士意见为准。以下是用户数据：\n${context}${kbCtx ? `\n\n${kbCtx}` : ''}`
 
     const recentMsgs = messages.value.filter(m => !m.isStreaming).slice(-6).map(m => ({ role: m.role, content: m.content }))
 
@@ -275,7 +298,14 @@ export function useAIChat() {
     isStreaming.value = true
     await new Promise(r => setTimeout(r, 300 + Math.random() * 300))
     isStreaming.value = false
-    messages.value.push({ id: newId('r'), role: 'assistant', content: ruleReply(question, scenarios), timestamp: Date.now() })
+    const kb = kbReply(question)
+    messages.value.push({
+      id: newId('r'),
+      role: 'assistant',
+      content: kb ?? ruleReply(question, scenarios),
+      timestamp: Date.now(),
+      source: 'kb',
+    })
     saveHistory()
   }
 

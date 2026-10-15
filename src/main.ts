@@ -9,7 +9,8 @@ const app = createApp(App)
 // 这里给出用户可见的提示，并监听 router 的 chunk 失败事件。
 app.config.errorHandler = (err, _instance, info) => {
   console.error('[app] 运行时异常：', err, info)
-  showFatalError('应用出现异常，请刷新页面重试')
+  const detail = err instanceof Error ? err.message : String(err)
+  showFatalError(`应用出现异常，请刷新页面重试（${info}: ${detail}）`)
 }
 
 function showFatalError(message: string) {

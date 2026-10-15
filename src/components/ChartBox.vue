@@ -10,49 +10,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch, nextTick, computed, shallowRef } from 'vue'
 import type { EChartsCoreOption, EChartsType } from 'echarts/core'
-
-// 仅导入类型，所有实际模块改为懒加载，避免静态+动态导入警告
-
-let initFn: typeof import('echarts/core').init | null = null
-let isRegistered = false
-
-async function ensureECharts(): Promise<typeof import('echarts/core').init> {
-  if (initFn) return initFn
-
-  const [{ init }, { use }, { CanvasRenderer }, { BarChart, LineChart, PieChart, ScatterChart, HeatmapChart }, {
-    TitleComponent,
-    TooltipComponent,
-    LegendComponent,
-    GridComponent,
-    VisualMapComponent,
-    DatasetComponent,
-    ToolboxComponent,
-    DataZoomComponent,
-    DataZoomInsideComponent,
-    DataZoomSliderComponent
-  }] = await Promise.all([
-    import('echarts/core'),
-    import('echarts/core'),
-    import('echarts/renderers'),
-    import('echarts/charts'),
-    import('echarts/components')
-  ])
-
-  // 仅在首次调用时注册组件
-  if (!isRegistered) {
-    use([
-      CanvasRenderer,
-      BarChart, LineChart, PieChart, ScatterChart, HeatmapChart,
-      TitleComponent, TooltipComponent, LegendComponent,
-      GridComponent, VisualMapComponent, DatasetComponent,
-      ToolboxComponent, DataZoomComponent, DataZoomInsideComponent, DataZoomSliderComponent
-    ])
-    isRegistered = true
-  }
-
-  initFn = init
-  return initFn
-}
+import { ensureECharts } from '../utils/echarts'
 
 const props = defineProps<{
   option: EChartsCoreOption
@@ -68,15 +26,19 @@ let ro: ResizeObserver | null = null
 async function render() {
   if (!el.value || props.loading || el.value.clientWidth === 0) return
   if (!chart.value) {
-    const init = await ensureECharts()
+    const { init } = await ensureECharts()
     chart.value = init(el.value, undefined, { renderer: 'canvas' })
   }
   chart.value.setOption(props.option, true)
 }
 
+// ResizeObserver 在折叠卡片展开（display:none → block）时也会触发：
+// 此时容器首次拿到宽度而 chart 尚未创建，必须补一次 render，
+// 否则折叠内的图表展开后永远是空白。
 function resize() {
   if (!el.value || el.value.clientWidth === 0) return
-  chart.value?.resize()
+  if (!chart.value) { nextTick(render); return }
+  chart.value.resize()
 }
 
 onMounted(() => {
@@ -104,6 +66,6 @@ watch(() => props.loading, (loading) => { if (!loading) nextTick(render) })
 .chart-wrap { position: relative; width: 100%; }
 .chart-box { width: 100%; }
 .chart-skeleton { display: flex; flex-direction: column; gap: 14px; padding: 10px 0; height: 100%; }
-.sk-bar { height: 12px; border-radius: 3px; background: linear-gradient(90deg, #f1f5f9 0%, #e2e8f0 50%, #f1f5f9 100%); animation: shimmer 1.5s ease-in-out infinite; }
+.sk-bar { height: 12px; border-radius: 3px; background: linear-gradient(90deg, var(--color-bg-tertiary) 0%, var(--color-border-primary) 50%, var(--color-bg-tertiary) 100%); animation: shimmer 1.5s ease-in-out infinite; }
 @keyframes shimmer { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
 </style>

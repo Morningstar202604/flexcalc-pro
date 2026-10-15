@@ -38,7 +38,7 @@
     "medical": { "baseMin": 6234, "baseMax": 31170, "rate": 0.08 }
   },
   "minimumWage": { "monthly": 2680, "nonFullTimeHourly": 25.4 },
-  "retirement": { "paymentIndex": 0.6, "assumedAnnualReturn": 0.03, "benefitBaseMonthly": 9493 },
+  "retirement": { "personalAccountRate": 0.08, "paymentIndex": 0.6, "assumedAnnualReturn": 0.03, "benefitBaseMonthly": 9493 },
   "soleProprietorship": {
     "vatRate": 0.01,
     "vatThresholdMonthly": 100000,
@@ -152,7 +152,7 @@
       "effectiveFrom": "2025-01-01 至 2026-12-31 全省统一使用 9493 元/月",
       "retrievedAt": "2026-10-12",
       "confidence": "derived",
-      "note": "计发基数 9493 元/月为广东省（不含深圳）统一口径，深圳单列 11293 元；该数值见于省市人社部门公开答复与多家一致报道，尚未回溯到发布本基数的规范性文件原文文号，对外引用前需补原文。60岁退休计发月数139为法定值；投资收益率3%为自设假设，必须向用户标注"
+      "note": "计发基数 9493 元/月为广东省（不含深圳）统一口径，深圳单列 11293 元；该数值见于省市人社部门公开答复与多家一致报道，尚未回溯到发布本基数的规范性文件原文文号，对外引用前需补原文。60岁退休计发月数139为法定值；投资收益率3%为自设假设，必须向用户标注。计发月数按 国发〔2005〕38号附表随退休年龄查表（40/45/50/55/60/65/70 岁 → 233/216/195/170/139/101/56），不再写死 139；投资收益率 3% 为自设假设，必须向用户标注"
     }
   }
 }
