@@ -83,19 +83,19 @@
   },
   "benefit": {
     "pension": {
-      "baseMin": 4650,
-      "baseMax": 23250,
+      "baseMin": 4498,
+      "baseMax": 22488,
       "rate": 0.2
     },
     "medical": {
-      "baseMin": 4650,
-      "baseMax": 23250,
+      "baseMin": 4498,
+      "baseMax": 22488,
       "rate": 0.08
     }
   },
   "minimumWage": {
-    "monthly": 2210,
-    "nonFullTimeHourly": 22.0
+    "monthly": 2400,
+    "nonFullTimeHourly": 24.0
   },
   "retirement": {
     "personalAccountRate": 0.08,
@@ -143,12 +143,14 @@
   },
   "sources": {
     "pension": {
-      "title": "武汉社会保险缴费基数上下限",
-      "issuedBy": "武汉市人力资源和社会保障局",
-      "url": "",
-      "retrievedAt": "2026-10-14",
-      "confidence": "unverified",
-      "note": "湖北省缴费基数未回溯原文，数值为占位，不可引用。"
+      "title": "关于我省2025年度社会保险缴费基数标准的通知",
+      "docNo": "鄂人社发〔2025〕28号",
+      "issuedBy": "湖北省人力资源和社会保障厅、省医疗保障局、国家税务总局湖北省税务局",
+      "url": "https://rst.hubei.gov.cn/zfxxgk/zc/qtzdgkwj/202509/t20250919_5775307.shtml",
+      "effectiveFrom": "2025-09-19",
+      "retrievedAt": "2026-10-15",
+      "confidence": "official",
+      "note": "第1档（武汉市和省直）：上限 22488 元/月、下限 4498 元/月。湖北按地区分档，武汉适用第1档；此为截至核取日最新已公布口径，2026 年度标准尚未见官方发布。"
     },
     "pensionRate": {
       "title": "灵活就业人员养老保险缴费比例 20%",
@@ -158,11 +160,14 @@
       "note": "灵活就业人员企业职工基本养老保险缴费比例普遍为 20%（12% 统筹 + 8% 个人账户）；以参保地经办口径为准。"
     },
     "medical": {
-      "title": "武汉职工基本医疗保险（灵活就业人员）",
-      "url": "",
-      "retrievedAt": "2026-10-14",
-      "confidence": "unverified",
-      "note": "本城灵活就业人员职工医保个人费率未逐字回溯到现行有效文件，暂按 8% 占位参与测算（8% 为多地灵活就业职工医保常见口径）；请以参保地医保局口径为准，参保前务必核实。"
+      "title": "关于我省2025年度社会保险缴费基数标准的通知（含职工医保）",
+      "docNo": "鄂人社发〔2025〕28号",
+      "issuedBy": "湖北省人力资源和社会保障厅等三部门",
+      "url": "https://rst.hubei.gov.cn/zfxxgk/zc/qtzdgkwj/202509/t20250919_5775307.shtml",
+      "effectiveFrom": "2025-09-19",
+      "retrievedAt": "2026-10-15",
+      "confidence": "official",
+      "note": "通知明确职工基本养老保险、职工基本医疗保险（生育保险）、失业保险、工伤保险统一标准；费率因参保形式而异，本项目 8% 为占位口径。"
     },
     "tax": {
       "title": "个人所得税法实施条例 + 税率表一（综合所得）",
@@ -174,11 +179,14 @@
       "note": "个税全国统一立法，按年度汇算清缴口径测算。"
     },
     "minimumWage": {
-      "title": "武汉最低工资标准",
-      "url": "",
-      "retrievedAt": "2026-10-14",
-      "confidence": "unverified",
-      "note": "本文件最低工资为占位值，未回溯本市现行有效通知原文，不可对外引用。"
+      "title": "湖北省人民政府办公厅关于调整全省最低工资标准的通知",
+      "docNo": "鄂政办发〔2025〕44号",
+      "issuedBy": "湖北省人民政府办公厅",
+      "url": "https://www.hubei.gov.cn/zfwj/ezbf/202512/t20251226_5842830.shtml",
+      "effectiveFrom": "2025-12-01",
+      "retrievedAt": "2026-10-15",
+      "confidence": "official",
+      "note": "第一档 2400 元/月（武汉市区），第二档 2130、第三档 1970。本项目取第一档。"
     },
     "retirement": {
       "title": "基本养老金计发办法",
@@ -186,7 +194,7 @@
       "url": "https://www.gov.cn/zhengce/zhengceku/2008-03/28/content_7376.htm",
       "retrievedAt": "2026-10-14",
       "confidence": "unverified",
-      "note": "计发基数为占位值，未回溯本市最新年度公布文件；计发月数按国发〔2005〕38号附表随退休年龄查表。"
+      "note": "养老金计发基数仍为占位值：湖北省人社厅（人社/医保）门户与站内检索均未找到明确公布「基本养老金计发基数」的现行文件（检索到的多为养老金“调整”通知，非计发基数）。该项直接决定基础养老金，未核实前请勿据此决策；计发月数按国发〔2005〕38号附表随退休年龄查表。"
     },
     "income": {
       "title": "平台接单计价规则",

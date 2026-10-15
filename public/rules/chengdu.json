@@ -83,18 +83,18 @@
   },
   "benefit": {
     "pension": {
-      "baseMin": 4511,
-      "baseMax": 22555,
+      "baseMin": 4699,
+      "baseMax": 23493,
       "rate": 0.2
     },
     "medical": {
-      "baseMin": 4511,
-      "baseMax": 22555,
+      "baseMin": 4699,
+      "baseMax": 23493,
       "rate": 0.08
     }
   },
   "minimumWage": {
-    "monthly": 2100,
+    "monthly": 2330,
     "nonFullTimeHourly": 22.0
   },
   "retirement": {
@@ -143,12 +143,14 @@
   },
   "sources": {
     "pension": {
-      "title": "成都社会保险缴费基数上下限",
-      "issuedBy": "成都市人力资源和社会保障局",
-      "url": "",
-      "retrievedAt": "2026-10-14",
-      "confidence": "unverified",
-      "note": "四川省缴费基数未回溯原文，数值为占位，不可引用。"
+      "title": "关于公布2026年度全省社会保险缴费基数上下限具体标准等参数的通知",
+      "docNo": "川人社办发〔2026〕50号",
+      "issuedBy": "四川省人力资源和社会保障厅",
+      "url": "https://rst.sc.gov.cn/rst/gsgg/2026/9/7/8b8edb37d4cd43ed995a0055f46b7705.shtml",
+      "effectiveFrom": "2026-09-07",
+      "retrievedAt": "2026-10-15",
+      "confidence": "official",
+      "note": "2026年度全省（含成都）企业职工基本养老保险缴费基数上限 23493 元/月、下限 4699 元/月；同文明确 7831 元/月用于部分医保/工伤待遇计发。"
     },
     "pensionRate": {
       "title": "灵活就业人员养老保险缴费比例 20%",
@@ -158,11 +160,14 @@
       "note": "灵活就业人员企业职工基本养老保险缴费比例普遍为 20%（12% 统筹 + 8% 个人账户）；以参保地经办口径为准。"
     },
     "medical": {
-      "title": "成都职工基本医疗保险（灵活就业人员）",
-      "url": "",
-      "retrievedAt": "2026-10-14",
-      "confidence": "unverified",
-      "note": "本城灵活就业人员职工医保个人费率未逐字回溯到现行有效文件，暂按 8% 占位参与测算（8% 为多地灵活就业职工医保常见口径）；请以参保地医保局口径为准，参保前务必核实。"
+      "title": "关于2026年度职工医疗保险缴费有关问题的通知",
+      "docNo": "成医保办〔2026〕14号",
+      "issuedBy": "成都市医疗保障局、成都市财政局、国家税务总局成都市税务局",
+      "url": "https://cdyb.chengdu.gov.cn/gkml/qtwj/1550450279336378368.shtml",
+      "effectiveFrom": "2026-10-01",
+      "retrievedAt": "2026-10-15",
+      "confidence": "official",
+      "note": "医保缴费基数与养老同口径（上限 23493 / 下限 4699 元/月）；灵活就业统账结合 6265 元/月、单建统筹 7831 元/月。费率因参保形式而异，本项目 8% 为统账结合口径占位，具体以经办机构核定为准。"
     },
     "tax": {
       "title": "个人所得税法实施条例 + 税率表一（综合所得）",
@@ -174,11 +179,14 @@
       "note": "个税全国统一立法，按年度汇算清缴口径测算。"
     },
     "minimumWage": {
-      "title": "成都最低工资标准",
-      "url": "",
-      "retrievedAt": "2026-10-14",
-      "confidence": "unverified",
-      "note": "本文件最低工资为占位值，未回溯本市现行有效通知原文，不可对外引用。"
+      "title": "四川省人民政府关于调整全省最低工资标准的通知",
+      "docNo": "川府规〔2024〕4号",
+      "issuedBy": "四川省人民政府",
+      "url": "https://www.sc.gov.cn/10462/zfwjts/2025/1/2/60841bcf38d844fb80ad1ea0b2d74e24.shtml",
+      "effectiveFrom": "2025-01-01",
+      "retrievedAt": "2026-10-15",
+      "confidence": "official",
+      "note": "成都市区适用第一档 2330 元/月（天府新区、东部新区、高新区及五城区等）；第二档 2200 元/月。本项目取第一档。"
     },
     "retirement": {
       "title": "基本养老金计发办法",
@@ -186,7 +194,7 @@
       "url": "https://www.gov.cn/zhengce/zhengceku/2008-03/28/content_7376.htm",
       "retrievedAt": "2026-10-14",
       "confidence": "unverified",
-      "note": "计发基数为占位值，未回溯本市最新年度公布文件；计发月数按国发〔2005〕38号附表随退休年龄查表。"
+      "note": "养老金计发基数仍为占位值：四川省人社厅（人社/医保）门户与站内检索均未找到明确公布「基本养老金计发基数」的现行文件（检索到的多为养老金“调整”通知，非计发基数）。该项直接决定基础养老金，未核实前请勿据此决策；计发月数按国发〔2005〕38号附表随退休年龄查表。"
     },
     "income": {
       "title": "平台接单计价规则",

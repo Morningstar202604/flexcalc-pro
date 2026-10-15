@@ -83,19 +83,19 @@
   },
   "benefit": {
     "pension": {
-      "baseMin": 4319,
-      "baseMax": 21595,
+      "baseMin": 4737,
+      "baseMax": 23685,
       "rate": 0.2
     },
     "medical": {
-      "baseMin": 4319,
-      "baseMax": 21595,
+      "baseMin": 4990,
+      "baseMax": 24948,
       "rate": 0.08
     }
   },
   "minimumWage": {
-    "monthly": 2160,
-    "nonFullTimeHourly": 21.0
+    "monthly": 2376,
+    "nonFullTimeHourly": 23.0
   },
   "retirement": {
     "personalAccountRate": 0.08,
@@ -143,12 +143,14 @@
   },
   "sources": {
     "pension": {
-      "title": "西安社会保险缴费基数上下限",
-      "issuedBy": "西安市人力资源和社会保障局",
-      "url": "",
-      "retrievedAt": "2026-10-14",
-      "confidence": "unverified",
-      "note": "陕西省缴费基数未回溯原文，数值为占位，不可引用。"
+      "title": "关于明确2026年度职工基本养老保险失业保险工伤保险缴费基数相关参数的通知",
+      "docNo": "陕人社函〔2026〕326号",
+      "issuedBy": "陕西省人力资源和社会保障厅",
+      "url": "https://rst.shaanxi.gov.cn/sy/tzgg/202608/t20260831_3672572.html",
+      "effectiveFrom": "2026-08-31",
+      "retrievedAt": "2026-10-15",
+      "confidence": "official",
+      "note": "2026年度缴费基数上限 23685 元/月、下限 4737 元/月（2025年度全口径月均工资 7895 元）。"
     },
     "pensionRate": {
       "title": "灵活就业人员养老保险缴费比例 20%",
@@ -158,11 +160,13 @@
       "note": "灵活就业人员企业职工基本养老保险缴费比例普遍为 20%（12% 统筹 + 8% 个人账户）；以参保地经办口径为准。"
     },
     "medical": {
-      "title": "西安职工基本医疗保险（灵活就业人员）",
-      "url": "",
-      "retrievedAt": "2026-10-14",
-      "confidence": "unverified",
-      "note": "本城灵活就业人员职工医保个人费率未逐字回溯到现行有效文件，暂按 8% 占位参与测算（8% 为多地灵活就业职工医保常见口径）；请以参保地医保局口径为准，参保前务必核实。"
+      "title": "西安市2025年度职工医保缴费基数公布",
+      "issuedBy": "西安市医疗保障局",
+      "url": "https://ybj.xa.gov.cn/szyw/tzgg/1970694363029188610.html",
+      "effectiveFrom": "2025-09-25",
+      "retrievedAt": "2026-10-15",
+      "confidence": "official",
+      "note": "医保基数与养老不同口径、且单独公布：2025年度上限 24948 元/月、下限 4990 元/月。2026 年度官方尚未检索到，故此处仍为 2025 年度口径。"
     },
     "tax": {
       "title": "个人所得税法实施条例 + 税率表一（综合所得）",
@@ -174,11 +178,14 @@
       "note": "个税全国统一立法，按年度汇算清缴口径测算。"
     },
     "minimumWage": {
-      "title": "西安最低工资标准",
-      "url": "",
-      "retrievedAt": "2026-10-14",
-      "confidence": "unverified",
-      "note": "本文件最低工资为占位值，未回溯本市现行有效通知原文，不可对外引用。"
+      "title": "关于调整最低工资标准的通知",
+      "docNo": "陕人社发〔2026〕4号",
+      "issuedBy": "陕西省人力资源和社会保障厅",
+      "url": "https://rst.shaanxi.gov.cn/sy/tzgg/202601/t20260107_3603035.html",
+      "effectiveFrom": "2026-01-01",
+      "retrievedAt": "2026-10-15",
+      "confidence": "official",
+      "note": "一类区 2376 元/月（含西安市新城区、碑林区、莲湖区、雁塔区、长安区等），二类 2250、三类 2140。本项目取一类区。"
     },
     "retirement": {
       "title": "基本养老金计发办法",
@@ -186,7 +193,7 @@
       "url": "https://www.gov.cn/zhengce/zhengceku/2008-03/28/content_7376.htm",
       "retrievedAt": "2026-10-14",
       "confidence": "unverified",
-      "note": "计发基数为占位值，未回溯本市最新年度公布文件；计发月数按国发〔2005〕38号附表随退休年龄查表。"
+      "note": "养老金计发基数仍为占位值：陕西省人社厅（人社/医保）门户与站内检索均未找到明确公布「基本养老金计发基数」的现行文件（检索到的多为养老金“调整”通知，非计发基数）。该项直接决定基础养老金，未核实前请勿据此决策；计发月数按国发〔2005〕38号附表随退休年龄查表。"
     },
     "income": {
       "title": "平台接单计价规则",

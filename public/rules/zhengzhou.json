@@ -83,19 +83,19 @@
   },
   "benefit": {
     "pension": {
-      "baseMin": 4290,
-      "baseMax": 21450,
+      "baseMin": 3912,
+      "baseMax": 19560,
       "rate": 0.2
     },
     "medical": {
-      "baseMin": 4290,
-      "baseMax": 21450,
+      "baseMin": 3912,
+      "baseMax": 19560,
       "rate": 0.08
     }
   },
   "minimumWage": {
-    "monthly": 2100,
-    "nonFullTimeHourly": 20.6
+    "monthly": 2350,
+    "nonFullTimeHourly": 23.0
   },
   "retirement": {
     "personalAccountRate": 0.08,
@@ -143,12 +143,14 @@
   },
   "sources": {
     "pension": {
-      "title": "郑州社会保险缴费基数上下限",
-      "issuedBy": "郑州市人力资源和社会保障局",
-      "url": "",
-      "retrievedAt": "2026-10-14",
-      "confidence": "unverified",
-      "note": "河南省缴费基数未回溯原文（仅见申报工作通告，未含数值），当前为占位。"
+      "title": "关于公布2026年度社会保险缴费基数上下限标准的通知",
+      "docNo": "豫人社办〔2026〕62号",
+      "issuedBy": "河南省人力资源和社会保障厅",
+      "url": "https://hrss.henan.gov.cn/2026/10-10/3435886.html",
+      "effectiveFrom": "2026-07-01",
+      "retrievedAt": "2026-10-15",
+      "confidence": "official",
+      "note": "2026年度缴费基数基准 6520 元/月（60% 为 3912、300% 为 19560），自 2026-07-01 执行。"
     },
     "pensionRate": {
       "title": "灵活就业人员养老保险缴费比例 20%",
@@ -158,11 +160,14 @@
       "note": "灵活就业人员企业职工基本养老保险缴费比例普遍为 20%（12% 统筹 + 8% 个人账户）；以参保地经办口径为准。"
     },
     "medical": {
-      "title": "郑州职工基本医疗保险（灵活就业人员）",
-      "url": "",
-      "retrievedAt": "2026-10-14",
-      "confidence": "unverified",
-      "note": "本城灵活就业人员职工医保个人费率未逐字回溯到现行有效文件，暂按 8% 占位参与测算（8% 为多地灵活就业职工医保常见口径）；请以参保地医保局口径为准，参保前务必核实。"
+      "title": "关于公布2026年度社会保险缴费基数上下限标准的通知（含基本医疗保险）",
+      "docNo": "豫人社办〔2026〕62号",
+      "issuedBy": "河南省人力资源和社会保障厅",
+      "url": "https://hrss.henan.gov.cn/2026/10-10/3435886.html",
+      "effectiveFrom": "2026-07-01",
+      "retrievedAt": "2026-10-15",
+      "confidence": "official",
+      "note": "通知明确含基本养老保险、基本医疗保险、工伤保险、失业保险、生育保险，全省五险统一口径；费率因参保形式而异，本项目 8% 为占位口径。"
     },
     "tax": {
       "title": "个人所得税法实施条例 + 税率表一（综合所得）",
@@ -174,11 +179,14 @@
       "note": "个税全国统一立法，按年度汇算清缴口径测算。"
     },
     "minimumWage": {
-      "title": "郑州最低工资标准",
-      "url": "",
-      "retrievedAt": "2026-10-14",
-      "confidence": "unverified",
-      "note": "本文件最低工资为占位值，未回溯本市现行有效通知原文，不可对外引用。"
+      "title": "河南省人民政府关于调整河南省最低工资标准的通知",
+      "docNo": "豫政〔2025〕25号",
+      "issuedBy": "河南省人民政府",
+      "url": "https://www.henan.gov.cn/2025/11-26/3267718.html",
+      "effectiveFrom": "2025-12-01",
+      "retrievedAt": "2026-10-15",
+      "confidence": "official",
+      "note": "一类行政区域 2350 元/月（郑州市区；小时 23 元），二类 2150、三类 2000。本项目取一类区。"
     },
     "retirement": {
       "title": "基本养老金计发办法",
@@ -186,7 +194,7 @@
       "url": "https://www.gov.cn/zhengce/zhengceku/2008-03/28/content_7376.htm",
       "retrievedAt": "2026-10-14",
       "confidence": "unverified",
-      "note": "计发基数为占位值，未回溯本市最新年度公布文件；计发月数按国发〔2005〕38号附表随退休年龄查表。"
+      "note": "养老金计发基数仍为占位值：河南省人社厅（人社/医保）门户与站内检索均未找到明确公布「基本养老金计发基数」的现行文件（检索到的多为养老金“调整”通知，非计发基数）。该项直接决定基础养老金，未核实前请勿据此决策；计发月数按国发〔2005〕38号附表随退休年龄查表。"
     },
     "income": {
       "title": "平台接单计价规则",

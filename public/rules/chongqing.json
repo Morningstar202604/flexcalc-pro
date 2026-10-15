@@ -83,19 +83,19 @@
   },
   "benefit": {
     "pension": {
-      "baseMin": 4462,
-      "baseMax": 22311,
+      "baseMin": 4553,
+      "baseMax": 22765,
       "rate": 0.2
     },
     "medical": {
-      "baseMin": 4462,
-      "baseMax": 22311,
+      "baseMin": 4553,
+      "baseMax": 22765,
       "rate": 0.08
     }
   },
   "minimumWage": {
-    "monthly": 2100,
-    "nonFullTimeHourly": 21.0
+    "monthly": 2330,
+    "nonFullTimeHourly": 22.0
   },
   "retirement": {
     "personalAccountRate": 0.08,
@@ -143,12 +143,14 @@
   },
   "sources": {
     "pension": {
-      "title": "重庆社会保险缴费基数上下限",
-      "issuedBy": "重庆市人力资源和社会保障局",
-      "url": "",
-      "retrievedAt": "2026-10-14",
-      "confidence": "unverified",
-      "note": "重庆市缴费基数未回溯原文，数值为占位；重庆灵活就业医保分档（单建统筹/统账结合）需按实际档次选择，本文件暂按 0 计。"
+      "title": "关于做好2026年度社会保险缴费基数上下限核定有关工作的通知",
+      "docNo": "渝人社规〔2026〕18号",
+      "issuedBy": "重庆市人力资源和社会保障局等四部门",
+      "url": "https://rlsbj.cq.gov.cn/zwgk_182/zfxxgkml/zcwj_145360/jfxzgfxwj/202609/t20260917_16091209.html",
+      "effectiveFrom": "2026-09-17",
+      "retrievedAt": "2026-10-15",
+      "confidence": "official",
+      "note": "2026年度缴费基数上限 22765 元/月、下限 4553 元/月，含以个人身份参保（灵活就业）人员。"
     },
     "pensionRate": {
       "title": "灵活就业人员养老保险缴费比例 20%",
@@ -158,11 +160,14 @@
       "note": "灵活就业人员企业职工基本养老保险缴费比例普遍为 20%（12% 统筹 + 8% 个人账户）；以参保地经办口径为准。"
     },
     "medical": {
-      "title": "重庆职工基本医疗保险（灵活就业人员）",
-      "url": "",
-      "retrievedAt": "2026-10-14",
-      "confidence": "unverified",
-      "note": "本城灵活就业人员职工医保个人费率未逐字回溯到现行有效文件，暂按 8% 占位参与测算（8% 为多地灵活就业职工医保常见口径）；请以参保地医保局口径为准，参保前务必核实。"
+      "title": "2026年度社会保险缴费基数上下限核定（含职工医保）",
+      "docNo": "渝人社规〔2026〕18号",
+      "issuedBy": "重庆市人力资源和社会保障局等四部门",
+      "url": "https://rlsbj.cq.gov.cn/zwgk_182/zfxxgkml/zcwj_145360/jfxzgfxwj/202609/t20260917_16091209.html",
+      "effectiveFrom": "2026-09-17",
+      "retrievedAt": "2026-10-15",
+      "confidence": "official",
+      "note": "职工基本医疗保险（含生育保险）与养老同档同标准核定；费率因参保形式而异，本项目 8% 为占位口径，以经办机构核定为准。"
     },
     "tax": {
       "title": "个人所得税法实施条例 + 税率表一（综合所得）",
@@ -174,11 +179,13 @@
       "note": "个税全国统一立法，按年度汇算清缴口径测算。"
     },
     "minimumWage": {
-      "title": "重庆最低工资标准",
-      "url": "",
-      "retrievedAt": "2026-10-14",
-      "confidence": "unverified",
-      "note": "本文件最低工资为占位值，未回溯本市现行有效通知原文，不可对外引用。"
+      "title": "最低工资标准调整后的具体标准（政策咨询问答库）",
+      "issuedBy": "重庆市人力资源和社会保障局",
+      "url": "https://rlsbj.cq.gov.cn/zczxwdk/ywfl/ldgx_1/202501/t20250102_14041562.html",
+      "effectiveFrom": "2025-01-01",
+      "retrievedAt": "2026-10-15",
+      "confidence": "official",
+      "note": "第一档 2330 元/月适用于万州区、渝中区、江北区、沙坪坝区等 29 个区；第二档 2200 元/月。本项目取第一档。"
     },
     "retirement": {
       "title": "基本养老金计发办法",
@@ -186,7 +193,7 @@
       "url": "https://www.gov.cn/zhengce/zhengceku/2008-03/28/content_7376.htm",
       "retrievedAt": "2026-10-14",
       "confidence": "unverified",
-      "note": "计发基数为占位值，未回溯本市最新年度公布文件；计发月数按国发〔2005〕38号附表随退休年龄查表。"
+      "note": "养老金计发基数仍为占位值：重庆市人社局（人社/医保）门户与站内检索均未找到明确公布「基本养老金计发基数」的现行文件（检索到的多为养老金“调整”通知，非计发基数）。该项直接决定基础养老金，未核实前请勿据此决策；计发月数按国发〔2005〕38号附表随退休年龄查表。"
     },
     "income": {
       "title": "平台接单计价规则",
