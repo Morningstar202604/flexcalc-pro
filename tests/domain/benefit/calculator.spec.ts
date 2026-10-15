@@ -288,6 +288,28 @@ describe('projectRetirement 退休测算', () => {
     }
   })
 
+  it('缴费年限超过剩余工作年限时，基础养老金按实际可缴年限封顶', () => {
+    // 55 岁到 60 岁最多缴 5 年。传 30 年时个账只按 5 年注入（contributionMonths 已封顶），
+    // 若基础养老金仍按 30 年算，同一结果里两套年限打架，养老金被系统性高估。
+    const over = projectRetirement(55, 60, yuanToCent(1200), 30, Rate.create(0.05), Rate.create(0.6), benefitBaseMonthly)
+    const exact = projectRetirement(55, 60, yuanToCent(1200), 5, Rate.create(0.05), Rate.create(0.6), benefitBaseMonthly)
+    expect(over.ok && exact.ok).toBe(true)
+    if (over.ok && exact.ok) {
+      expect(Number(over.value.basePension)).toBe(Number(exact.value.basePension))
+      expect(Number(over.value.personalAccount)).toBe(Number(exact.value.personalAccount))
+      expect(Number(over.value.totalPension)).toBe(Number(exact.value.totalPension))
+    }
+  })
+
+  it('缴费年限封顶不减损未超额的情形（缴满至退休仍按实际年限）', () => {
+    const r = projectRetirement(25, 60, yuanToCent(1200), 15, Rate.create(0.05), Rate.create(0.6), benefitBaseMonthly)
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      const expected = 9493 * (1 + 0.6) / 2 * 15 * 0.01
+      expect(Number(r.value.basePension) / 100).toBeCloseTo(expected, 1)
+    }
+  })
+
   it('非法输入被安全处理', () => {
     // NaN 年龄 -> 0，退休年龄 60 -> months = 720（当前行为：NaN 当作 0 处理）
     const r1 = projectRetirement(NaN, 60, yuanToCent(1200), 15, Rate.create(0.05), Rate.create(0.6), benefitBaseMonthly)

@@ -24,7 +24,26 @@ const sum = uninsured.income.basePay + uninsured.income.distancePay + uninsured.
 
 console.log('=== 一致性 ===')
 console.log('分项之和', sum, '月收入', uninsured.income.grossIncome, '相等=', sum === uninsured.income.grossIncome)
-console.log('成本饼图缺项', costs.phoneCostMonth + costs.otherCostMonth, '（应被图表覆盖）')
+
+// 收支饼图闭合校验：饼图各分片之和必须等于成本合计。
+// 仅打印 phoneCost/otherCost 这类原始输入无法证明「图表是否漏项」——必须按饼图
+// 实际分片（见 IncomeDetail.vue costPieOption）累加后再对齐 costBreakdown.total。
+const pieSlices = {
+  油电: costs.fuelCostMonth + costs.electricityCostMonth,
+  维护: costs.maintenanceMonth,
+  保险: costs.insuranceMonth,
+  通讯: costs.phoneCostMonth,
+  餐饮: costs.foodCostMonth,
+  罚款: costs.trafficFineMonth,
+  折旧: costs.vehicleDepreciationMonth,
+  其他: costs.otherCostMonth,
+}
+const pieSum = Object.values(pieSlices).reduce((a, b) => a + b, 0)
+console.log('成本饼图分片合计', pieSum, '成本合计', uninsured.costBreakdown.total, '闭合=', pieSum === uninsured.costBreakdown.total)
+if (pieSum !== uninsured.costBreakdown.total) {
+  const missing = uninsured.costBreakdown.total - pieSum
+  console.log('成本饼图缺项', missing, '元 —— 饼图与成本合计不闭合，必须补片')
+}
 
 console.log('\n=== 未参保 ===')
 console.log('月收入', uninsured.income.grossIncome, '月成本', uninsured.costBreakdown.total, '月个税', (uninsured.tax.annualTax / 12).toFixed(2))

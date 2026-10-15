@@ -39,12 +39,16 @@ export class IncomeEngine {
   }
 
   calcCosts(p: CostParams): CostBreakdown {
+    // 与 domain/income/calculator 同口径：与车型不匹配的油/电分项不计入
+    // （UI 隐藏输入框后隐藏值仍在参数里，照旧加总会扣掉看不见的钱）
+    const fuel = p.vehicleType === 'electric' ? 0 : safeNum(p.fuelCostMonth, 0, 20000, 0)
+    const electricity = p.vehicleType === 'fuel' ? 0 : safeNum(p.electricityCostMonth, 0, 20000, 0)
     const parts = [
-      p.fuelCostMonth, p.electricityCostMonth, p.maintenanceMonth, p.insuranceMonth,
+      fuel, electricity, p.maintenanceMonth, p.insuranceMonth,
       p.phoneCostMonth, p.foodCostMonth, p.trafficFineMonth, p.vehicleDepreciationMonth, p.otherCostMonth,
     ].map(v => safeNum(v, 0, 20000, 0))
     const total = parts.reduce((s, v) => s + v, 0)
-    return { ...p, total: round(total) }
+    return { ...p, fuelCostMonth: fuel, electricityCostMonth: electricity, total: round(total) }
   }
 }
 

@@ -9,7 +9,8 @@ export const router = createRouter({
     { path: '/planning', name: 'Planning', component: () => import('../views/PlanningView.vue') },
     { path: '/rights', name: 'Rights', component: () => import('../views/RightsView.vue') },
     { path: '/policy', name: 'Policy', component: () => import('../views/PolicyView.vue') },
-    { path: '/:pathMatch(.*)*', redirect: '/dashboard' },
+    // 未知路径显式 404：静默重定向会让用户以为地址是对的（深链写错也无从发现）
+    { path: '/:pathMatch(.*)*', name: 'NotFound', component: () => import('../views/NotFoundView.vue') },
   ],
 })
 

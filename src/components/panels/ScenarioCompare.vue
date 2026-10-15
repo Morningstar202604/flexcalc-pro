@@ -9,6 +9,10 @@
       <p class="desc">
         基于当前参数一键生成变体方案，也可添加自定义方案（工时、单量可独立调整），横向对比月净收入与权益保障。
       </p>
+      <n-alert v-if="provisional" type="warning" :show-icon="true" style="margin-top: 8px">
+        当前参数含未回溯官方的占位值（{{ unverifiedFields.join('、') }}），
+        下方「假设最优」只是这些假设下的相对排序，请勿当作真实收益结论。
+      </n-alert>
     </n-card>
 
     <n-grid :x-gap="12" cols="1 s:2 m:3" responsive="screen" style="margin-top: 12px">
@@ -17,7 +21,9 @@
           <template #header>
             <div class="sc-head">
               <span class="sc-name">{{ s.name }}</span>
-              <n-tag v-if="s.id === store.comparison?.best?.id" type="success" size="small" :bordered="false">最优</n-tag>
+              <n-tag v-if="s.id === store.comparison?.best?.id" :type="provisional ? 'warning' : 'success'" size="small" :bordered="false">
+                {{ provisional ? '假设最优' : '最优' }}
+              </n-tag>
             </div>
           </template>
           <div class="sc-net">¥{{ s.netMonthly.toLocaleString() }}<small>/月</small></div>
@@ -27,7 +33,7 @@
             <div><span>油电费</span><b>¥{{ s.costs.fuelCostMonth + s.costs.electricityCostMonth }}</b></div>
             <div><span>税率</span><b>{{ s.tax.effectiveRate }}%</b></div>
             <div><span>权益评分</span><b :class="`score-${scoreTier(s.rightsScore)}`">{{ s.rightsScore }}</b></div>
-            <div><span>评级</span><b>{{ s.recommendation === 'recommended' ? '推荐' : s.recommendation === 'viable' ? '可行' : '有风险' }}</b></div>
+            <div><span>评级</span><b>{{ provisional ? '假设' : s.recommendation === 'recommended' ? '推荐' : s.recommendation === 'viable' ? '可行' : '有风险' }}</b></div>
           </div>
           <template #action>
             <n-button text type="error" size="small" @click="store.removeScenario(s.id)" v-if="s.id.startsWith('custom_')">删除方案</n-button>
@@ -38,7 +44,7 @@
 
     <FoldCard
       title="方案净收入对比"
-      :summary="store.comparison?.best ? `最优「${store.comparison.best.name}」` : '暂无方案'"
+      :summary="store.comparison?.best ? `${provisional ? '假设最优' : '最优'}「${store.comparison.best.name}」` : '暂无方案'"
       style="margin-top: 12px"
     >
       <ChartBox :option="compareOption" :height="320" />
@@ -74,7 +80,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import type { EChartsCoreOption } from 'echarts/core'
-import { NCard, NGrid, NGi, NTag, NSpace, NButton, NModal, NInput, NSlider } from 'naive-ui'
+import { NCard, NGrid, NGi, NTag, NSpace, NButton, NModal, NInput, NSlider, NAlert } from 'naive-ui'
 import { useMainStore } from '../../stores/main'
 import { axisX, axisY, GRID, chartColors } from '../../utils/chart'
 import { scoreTier } from '../../utils/score'
@@ -82,6 +88,10 @@ import ChartBox from '../ChartBox.vue'
 import FoldCard from '../FoldCard.vue'
 
 const store = useMainStore()
+
+/** 占位数据门禁：最优方案建立在未核实参数上时，标签与措辞降级为「假设」 */
+const provisional = computed(() => store.comparison?.best?.dataQuality?.provisional === true)
+const unverifiedFields = computed(() => store.comparison?.best?.dataQuality?.unverifiedFields ?? [])
 
 const compareOption = computed<EChartsCoreOption>(() => {
   void store.isDark // 主题依赖：浅深切换后重算配色

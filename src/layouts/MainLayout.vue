@@ -264,6 +264,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: var(--space-6);
+  /* flex 子项默认 min-width:auto，内容宽于视口时整页被撑出横向滚动条 */
+  min-width: 0;
 }
 
 /* Brand */
@@ -327,6 +329,14 @@ onUnmounted(() => {
   padding: var(--space-1) 0;
   flex: 1;
   max-width: 720px;
+  /* 允许收缩：否则导航项按内容宽度把 header 撑破视口 */
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.header-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .nav-link {
@@ -376,6 +386,7 @@ onUnmounted(() => {
   gap: var(--space-2);
   margin-left: auto;
   flex-shrink: 0;
+  min-width: 0;
 }
 
 /* Status Badge */
@@ -566,6 +577,9 @@ onUnmounted(() => {
   margin-left: var(--sider-width);
   min-height: calc(100vh - var(--header-height));
   transition: margin-left var(--transition-normal);
+  /* flex 子项默认 min-width:auto，页面内容（表格/步骤条/图表）的 min-content
+     宽度会把主区撑出视口，表现为整页横向滚动 */
+  min-width: 0;
 }
 
 .content-full {
@@ -577,6 +591,7 @@ onUnmounted(() => {
   margin: 0 auto;
   padding: var(--space-6) var(--space-4);
   width: 100%;
+  min-width: 0;
 }
 
 .page-content {
@@ -638,6 +653,9 @@ onUnmounted(() => {
 }
 
 /* ---------- Mobile Sidebar Overlay ---------- */
+/* 关闭态必须是「不可点」：display:block + opacity:0 但 pointer-events:auto 时，
+   遮罩会盖在 header 上（z-index 299 > sticky 200）吃掉所有点击，
+   表现为移动端"打开参数设置"按钮按不动、页面看似正常却完全无响应 */
 .sidebar-overlay {
   display: none;
   position: fixed;
@@ -645,17 +663,35 @@ onUnmounted(() => {
   background: rgba(15, 23, 42, 0.4);
   z-index: calc(var(--z-fixed) - 1);
   opacity: 0;
+  pointer-events: none;
   transition: opacity var(--transition-normal);
 }
 
 .sidebar-overlay.visible {
   display: block;
   opacity: 1;
+  pointer-events: auto;
 }
 
 @media (max-width: 767px) {
   .mobile-menu-btn {
     display: flex;
+  }
+
+  /* 窄屏放不下城市徽章全文：只留状态点，详情在参数栏可见，
+     否则 header 内容总宽超过视口，整页出现横向滚动 */
+  .status-badge {
+    display: none;
+  }
+
+  .header-container {
+    gap: var(--space-2);
+  }
+
+  .header-nav {
+    /* 移动端导航让位给汉堡按钮与操作区，改为横向可滑 */
+    margin-left: 0;
+    flex: 1 1 auto;
   }
 
   .sidebar {

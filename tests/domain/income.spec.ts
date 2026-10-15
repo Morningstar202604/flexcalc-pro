@@ -209,18 +209,46 @@ describe('domain/income - 纯函数', () => {
     })
 
     it('负值被夹取为 0', () => {
-      const costs = calcCosts({ ...baseCosts, fuelCostMonth: -1000 })
+      const costs = calcCosts({ ...baseCosts, vehicleType: 'mixed', fuelCostMonth: -1000 })
       expect(costs.fuelCostMonth).toBe(0)
     })
 
     it('超大值被夹取为上限', () => {
-      const costs = calcCosts({ ...baseCosts, fuelCostMonth: 5000000 })
+      const costs = calcCosts({ ...baseCosts, vehicleType: 'mixed', fuelCostMonth: 5000000 })
       expect(costs.fuelCostMonth).toBe(2000000)
     })
 
     it('NaN 输入被夹取为 0', () => {
-      const costs = calcCosts({ ...baseCosts, fuelCostMonth: NaN })
+      const costs = calcCosts({ ...baseCosts, vehicleType: 'mixed', fuelCostMonth: NaN })
       expect(costs.fuelCostMonth).toBe(0)
+    })
+
+    it('电动车的油费不计入成本（UI 隐藏输入框后，隐藏值不得继续扣净收入）', () => {
+      const costs = calcCosts({ ...baseCosts, vehicleType: 'electric', fuelCostMonth: 20000, electricityCostMonth: 30000 })
+      expect(costs.fuelCostMonth, '电动模式下油费必须归零').toBe(0)
+      expect(costs.electricityCostMonth).toBe(30000)
+      // 合计 = 电费 30000 + 维护 20000 + 保险 10000 + 通讯 10000 + 餐饮 80000 + 罚款 5000 + 折旧 30000 + 其他 10000
+      expect(costs.total).toBe(195000)
+    })
+
+    it('燃油车的电费不计入成本，混合动力两项都计', () => {
+      const fuel = calcCosts({ ...baseCosts, vehicleType: 'fuel', fuelCostMonth: 20000, electricityCostMonth: 30000 })
+      expect(fuel.electricityCostMonth).toBe(0)
+      expect(fuel.fuelCostMonth).toBe(20000)
+
+      const mixed = calcCosts({ ...baseCosts, vehicleType: 'mixed', fuelCostMonth: 20000, electricityCostMonth: 30000 })
+      expect(mixed.fuelCostMonth).toBe(20000)
+      expect(mixed.electricityCostMonth).toBe(30000)
+      // 混合模式两项都进合计：195000 + 油费 20000
+      expect(mixed.total).toBe(215000)
+    })
+
+    it('车型切换不丢数据：切回原车型时原值恢复计入', () => {
+      const asElectric = calcCosts({ ...baseCosts, vehicleType: 'electric', fuelCostMonth: 20000 })
+      expect(asElectric.fuelCostMonth).toBe(0)
+      // 输入参数本身未被改写，切回燃油模式原值即恢复（零化只发生在计算结果里）
+      const asFuel = calcCosts({ ...baseCosts, vehicleType: 'fuel', fuelCostMonth: 20000 })
+      expect(asFuel.fuelCostMonth).toBe(20000)
     })
   })
 })

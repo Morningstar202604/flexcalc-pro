@@ -51,6 +51,10 @@ export const useMainStore = defineStore('main', () => {
   const loading = ref(false)
   const loadError = ref<string | null>(null)
   const paramsRestored = ref(false)
+  /** 一次性提示（如切城重置了自选基数）；由 ParamSidebar 展示后可清空 */
+  const cityNotice = ref<string | null>(null)
+  /** 本地存储写入失败原因：隐私模式/配额耗尽时不是"已保存"，UI 必须能区分 */
+  const persistError = ref<string | null>(null)
   let loadSeq = 0
   let persistTimer: ReturnType<typeof setTimeout> | undefined
   const saved = loadParams()
@@ -58,6 +62,11 @@ export const useMainStore = defineStore('main', () => {
   const work = ref<WorkParams>(hydrateParams(saved?.work, DEFAULT_WORK))
   const costs = ref<CostParams>(hydrateParams(saved?.costs, DEFAULT_COSTS))
   const personal = ref<PersonalParams>(hydrateParams(saved?.personal, DEFAULT_PERSONAL))
+  // 恢复的旧参数可能自带矛盾组合（老版本写入、用户手改存储）：单字段夹取管不住
+  // 跨字段约束，必须在赋初值时修一次，否则 scenarios 从一开始就是空数组
+  if (personal.value.expectedRetireAge <= personal.value.currentAge) {
+    personal.value.expectedRetireAge = Math.min(personal.value.currentAge + 1, 90)
+  }
   paramsRestored.value = !!saved
 
   /** 自定义方案是嵌套结构，数组不能走 hydrate 的键值白名单，需单独校验必要字段 */
@@ -88,6 +97,9 @@ export const useMainStore = defineStore('main', () => {
     const seq = ++loadSeq
     loading.value = true
     loadError.value = null
+    // 切城时先作废旧规则：否则在新规则到达前，engine 仍按旧城口径计算，
+    // 而 work.city / 标签已是新城，出现「深圳标签 + 广州数字」的窗口
+    if (rule.value && rule.value.city !== city) rule.value = null
     // 无超时的 fetch 在弱网或 SPA 回退挂起时会让 finally 不执行，loading 永久为 true，
     // 城市选择器被禁用后用户无法自救，只能靠手动刷新
     const controller = new AbortController()
@@ -109,8 +121,14 @@ export const useMainStore = defineStore('main', () => {
       if (tierId && !data.benefit.medicalTiers?.some(t => t.id === tierId)) {
         personal.value.medicalTierId = undefined
       }
+      // 自选缴费基数是按旧城上下限填的，跨城沿用会算出越界/无意义的金额。
+      // 清空是对的，但必须告知——否则用户以为自己的设置"自己丢了"
+      const hadBase = personal.value.pensionBase !== undefined || personal.value.medicalBase !== undefined
       personal.value.pensionBase = undefined
       personal.value.medicalBase = undefined
+      if (hadBase) {
+        cityNotice.value = `已切换到${data.cityName}：此前自选的缴费基数按上一城市口径填写，已重置为该城默认（按申报收入夹取）。如需固定基数请在左侧重新选择。`
+      }
     } catch (err) {
       if (seq !== loadSeq) return
       rule.value = null
@@ -130,15 +148,42 @@ export const useMainStore = defineStore('main', () => {
     return loadRule(city)
   }
 
+  /**
+   * 当前年龄与退休年龄是一对跨字段约束：服务层要求「退休年龄 > 当前年龄」，
+   * 一旦违反，整批场景被拒 → scenarios 变空数组 → 页面显示「正常但全是零」，
+   * 而用户完全看不出是自己把年龄调矛盾了。
+   *
+   * 两个滑块各自独立（当前年龄上限 65、退休年龄下限 currentAge+1），挡不住
+   * 「先设退休年龄 60 再把当前年龄拉到 65」以及恢复旧参数造成的矛盾，故在 store 兜底。
+   * flush:'sync' 必须保留：异步 flush 会让 UI 先闪过一帧空测算，
+   * 且非组件环境（单测）同步读取时约束尚未生效。
+   */
+  watch(
+    () => [personal.value.currentAge, personal.value.expectedRetireAge] as const,
+    ([age, retireAge]) => {
+      if (!Number.isFinite(age) || !Number.isFinite(retireAge)) return
+      if (retireAge <= age) {
+        // 退休年龄上限与 PARAM_BOUNDS 对齐（90）；至少要留出 1 年缴费期
+        personal.value.expectedRetireAge = Math.min(age + 1, 90)
+      }
+    },
+    { flush: 'sync' },
+  )
+
   /** 参数是用户逐项调出来的，刷新即丢会让"方案对比"无法复现，故落本地存储 */
-  watch([work, costs, personal, customPlans], () => {
-    clearTimeout(persistTimer)
+  watch([work, costs, personal, customPlans], () => {    clearTimeout(persistTimer)
     persistTimer = setTimeout(() => {
       try {
         localStorage.setItem(PARAMS_KEY, JSON.stringify({
           work: work.value, costs: costs.value, personal: personal.value, customPlans: customPlans.value,
         }))
-      } catch { /* 隐私模式或配额耗尽时静默降级为不持久化 */ }
+        persistError.value = null
+      } catch (err) {
+        // 隐私模式或配额耗尽：此前静默吞掉，用户以为参数已保存，刷新后全丢
+        persistError.value = err instanceof Error && err.name === 'QuotaExceededError'
+          ? '本地存储空间不足，参数无法自动保存（本次测算仍可正常使用）'
+          : '当前浏览器禁止本地存储（可能处于隐私模式），参数无法自动保存'
+      }
     }, 300)
   }, { deep: true })
 
@@ -214,5 +259,5 @@ export const useMainStore = defineStore('main', () => {
     }
   }
 
-  return { rule, loading, loadError, paramsRestored, work, costs, personal, customPlans, compensation, setCompensation, scenarios, comparison, isDark, toggleTheme, loadRule, setCity, resetParams, addScenario, removeScenario }
+  return { rule, loading, loadError, paramsRestored, cityNotice, persistError, work, costs, personal, customPlans, compensation, setCompensation, scenarios, comparison, isDark, toggleTheme, loadRule, setCity, resetParams, addScenario, removeScenario }
 })

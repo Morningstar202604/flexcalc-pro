@@ -32,7 +32,7 @@
       <div class="scenario-grid">
         <div v-for="s in scenarios" :key="s.id"
              :class="['scenario-card', { active: currentScene === s.id }]"
-             @click="currentScene = s.id; calc()">
+             @click="selectScene(s.id)">
           <div class="sc-icon">{{ s.icon }}</div>
           <div class="sc-name">{{ s.name }}</div>
           <div class="sc-basis">{{ s.legalBasis }}</div>
@@ -211,8 +211,13 @@
             填写左侧参数后自动计算补偿金额
           </div>
           <div v-else class="result-section">
+            <!-- 首屏用的是预填示例值：不加标识的话，用户会把示例金额当成自己的可主张金额 -->
+            <n-alert v-if="isExample" type="info" :show-icon="true" style="margin-bottom: 10px">
+              下面是按<strong>示例参数</strong>算出的金额，不是你的情况。请把左侧各项改成你的实际数字，
+              金额才会更新并可用于文书生成。
+            </n-alert>
             <div class="result-total">
-              <span>可直接主张合计</span>
+              <span>{{ isExample ? '示例可直接主张合计' : '可直接主张合计' }}</span>
               <strong>¥{{ result.total.toLocaleString() }}</strong>
             </div>
             <div v-if="result.conditionalTotal > 0" class="result-conditional">
@@ -503,6 +508,18 @@ function calcOverwork(): CalcResult {
  */
 const userTouched = ref(false)
 
+/** 切场景：新场景的输入仍是示例值，确认状态必须跟着复位，
+ *  否则新场景的默认金额会被当作"用户已确认"送进文书 */
+function selectScene(id: string) {
+  if (currentScene.value === id) return
+  currentScene.value = id
+  userTouched.value = false
+  calc()
+}
+
+/** 结果是否只是示例（未确认）：UI 必须与"用户已确认"区分开 */
+const isExample = computed(() => !userTouched.value && !!result.value)
+
 function calc() {
   switch (currentScene.value) {
     case 'wage': result.value = calcWage(); break
@@ -524,7 +541,10 @@ watch(form, () => {
 function resetForm() {
   const defaults = JSON.parse(JSON.stringify(DEFAULT_FORM))[currentScene.value as keyof typeof DEFAULT_FORM]
   Object.assign(form[currentScene.value as keyof typeof form], defaults)
+  // 重置回示例值后同样不能算作"用户已确认"（watch 会把它标为 true，此处必须覆盖）
+  userTouched.value = false
   message.success('已重置当前场景参数')
+  calc()
 }
 
 // 首屏渲染（不写入 store）

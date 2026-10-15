@@ -40,6 +40,7 @@ import type { IncomeRule as DomainIncomeRule } from '../../domain/income/rules'
 import type { LaborRemunerationRule as DomainLaborRule } from '../../domain/tax/rules'
 import type { BenefitRule as DomainBenefitRule } from '../../domain/benefit/rules'
 import { round2 } from '../../utils/number'
+import { dataQualityOf } from '../../utils/dataQuality'
 
 /** 场景输入 */
 export interface ScenarioInput {
@@ -120,7 +121,12 @@ export class ScenarioService {
           monthlyGrossCent - costBreakdown.total - monthlyTaxCent - benefitResult.value.totalMonthly,
         )
         const netAnnualCent = netMonthlyCent * 12
-        const netHourlyCent = netMonthlyCent / (safeDivisor(work.dailyHours) * safeDivisor(work.workDaysMonth))
+        // 时薪只在「确实有工作小时」时有意义：0 天工作时若用 1 小时兜底当分母，
+        // 会把整月固定亏损除成 ¥-195/h 这类假时薪。无工作小时即无时薪（0），与旧引擎同步。
+        const workedHours = work.dailyHours * work.workDaysMonth
+        const netHourlyCent = workedHours > 0 && Number.isFinite(workedHours)
+          ? netMonthlyCent / workedHours
+          : 0
         // ===== 分 → 元，产出对外契约 =====
         const monthlyTaxYuan = toYuan(monthlyTaxCent)
         const netMonthly = toYuan(netMonthlyCent)
@@ -240,6 +246,7 @@ export class ScenarioService {
           rightsFlags: flags,
           recommendation,
           keyInsights,
+          dataQuality: dataQualityOf(this.rawRule.sources, personal.hasSocialInsurance),
         } satisfies ScenarioResult
       },
       e => AppError.engine('ScenarioService.runScenario', e instanceof Error ? e.message : String(e)),

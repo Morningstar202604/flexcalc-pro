@@ -13,6 +13,7 @@ import { IncomeEngine } from './IncomeEngine'
 import { TaxEngine, type TaxEngineConfig } from './TaxEngine'
 import { BenefitEngine } from './BenefitEngine'
 import { round2 as round } from '../utils/number'
+import { dataQualityOf } from '../utils/dataQuality'
 
 export class ScenarioEngine {
   constructor(private rule: CityRule) {}
@@ -39,8 +40,10 @@ export class ScenarioEngine {
     const netMonthly = round(monthlyGross - costBrk.total - monthlyTax - insuranceCost)
     // 年度必须等于月度的 12 倍，否则 UI 同屏展示的月净与年净会对不上
     const netAnnual = round(netMonthly * 12)
-    const hours = safeDivisor(work.dailyHours) * safeDivisor(work.workDaysMonth)
-    const netHourly = round(netMonthly / hours)
+    // 时薪只在确实有工作小时时有意义：0 天工作时用 1 小时兜底会把整月固定亏损
+    // 除成假时薪（-195/h），与 ScenarioService 同口径，由 parity 锁定。
+    const hours = work.dailyHours * work.workDaysMonth
+    const netHourly = hours > 0 && Number.isFinite(hours) ? round(netMonthly / hours) : 0
 
     const { score: rightsScore, flags: rightsFlags } = this.calcRightsScore(work, costBrk.total, personal, benefit)
     // 保障缺失时封顶为 viable：否则净收入一高就出现"推荐你不参保"的反向激励。
@@ -51,8 +54,10 @@ export class ScenarioEngine {
     const incomeTier = incomeCapacity > minWageFloor * 2 ? 'recommended' : incomeCapacity > minWageFloor ? 'viable' : 'risky'
     const recommendation = !personal.hasSocialInsurance && incomeTier === 'recommended' ? 'viable' : incomeTier
     const keyInsights = this.generateInsights(work, costs, tax, netMonthly, benefit, personal)
+    // 与 ScenarioService 共用同一判定函数（utils/dataQuality），避免两条路径漂移
+    const dataQuality = dataQualityOf(this.rule.sources, personal.hasSocialInsurance)
 
-    return { id, name, work, costs, income, costBreakdown: costBrk, tax, benefit, netMonthly, netAnnual, netHourly, rightsScore, rightsFlags, recommendation, keyInsights }
+    return { id, name, work, costs, income, costBreakdown: costBrk, tax, benefit, netMonthly, netAnnual, netHourly, rightsScore, rightsFlags, recommendation, keyInsights, dataQuality }
   }
 
   compare(scenarios: ScenarioResult[]): ComparisonResult {
@@ -137,9 +142,4 @@ export class ScenarioEngine {
     }
     return insights
   }
-}
-
-/** 除数保护：任一因子为 0 或非有限时回落到 1，避免 netHourly 出现 Infinity */
-function safeDivisor(v: number): number {
-  return Number.isFinite(v) && v > 0 ? v : 1
 }

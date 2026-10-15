@@ -19,7 +19,9 @@ export const PARAM_BOUNDS = {
     dailyHours: [1, 24],
     dailyOrders: [0, 200],
     avgDistance: [0, 50],
-    workDaysMonth: [1, 31],
+    // 下限 0 与 domain（允许 0 天：收入 0、成本仍在）和 ScenarioService 的校验一致；
+    // 写 1 会让持久化的「本月 0 天」在恢复时被静默改成 1 天，凭空多算一天收入
+    workDaysMonth: [0, 31],
     rainDaysMonth: [0, 31],
     holidayDaysMonth: [0, 31],
   },

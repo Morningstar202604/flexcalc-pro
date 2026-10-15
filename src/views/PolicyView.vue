@@ -26,7 +26,14 @@
         </div>
       </n-tab-pane>
 
-      <n-tab-pane name="guangdong" tab="广东省 / 广州">
+      <n-tab-pane name="guangdong" :tab="provinceTabLabel">
+        <!-- 当前城市不在广东时，本页内容与用户所在省份无关，必须说明而不是默默展示 -->
+        <n-alert v-if="currentProvince && currentProvince !== '广东'" type="info" :show-icon="true" style="margin-bottom: 10px">
+          你当前测算城市是<b>{{ store.rule?.cityName }}</b>（{{ currentProvince }}）。
+          本页收录的是<b>广东省</b>的地方性政策原文，与你所在省份的地区性规定不同，
+          不能直接套用——请以{{ currentProvince }}人社/医保部门的现行文件为准。
+          全国性政策见「国家级」页。
+        </n-alert>
         <div class="policy-list">
           <FoldCard v-for="p in policies.guangdong" :key="p.id">
             <template #header>
@@ -179,14 +186,15 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { NCard, NTabs, NTabPane, NGrid, NGi, NTag, NSteps, NStep, NEmpty, NInput, NRadioGroup, NRadioButton } from 'naive-ui'
+import { NCard, NTabs, NTabPane, NGrid, NGi, NTag, NSteps, NStep, NEmpty, NInput, NRadioGroup, NRadioButton, NAlert } from 'naive-ui'
 import { useMainStore } from '../stores/main'
+import { CITY_REGISTRY } from '../data/cities'
 import { SOURCE_LABELS } from '../utils/sources'
 import FoldCard from '../components/FoldCard.vue'
 import RealityList from '../components/RealityList.vue'
 import GuideCard from '../components/GuideCard.vue'
 import KbResultCard from '../components/KbResultCard.vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { REALITY_FACTS, REALITY_CATEGORY_ORDER, REALITY_CATEGORY_LABELS } from '../utils/reality'
 import { GUIDE_ITEMS, GUIDE_GROUP_ORDER, GUIDE_GROUP_LABELS } from '../utils/livingGuide'
 import { POLICIES, RELIEF_GUIDE, type PolicyStatus } from '../data/policies'
@@ -201,11 +209,39 @@ import {
 const store = useMainStore()
 const rule = computed(() => store.rule)
 
-/** 支持从其他页深链进入指定页签：/policy?tab=manual */
+/**
+ * 省级页签标题跟随当前城市：本页只收录了广东省地方政策，
+ * 写死「广东省 / 广州」会让北京/上海用户以为这里的内容适用于自己。
+ */
+const currentProvince = computed(() => {
+  const city = store.work.city
+  return CITY_REGISTRY.find(c => c.value === city)?.province ?? ''
+})
+const provinceTabLabel = computed(() => {
+  // 规则文件未加载时退回中性标题，避免用 work.city 猜出错误的省份
+  if (!currentProvince.value) return '地方政策（广东）'
+  if (currentProvince.value === '广东') {
+    const name = store.rule?.cityName ?? '广州'
+    return `广东省 / ${name}`
+  }
+  return `地方政策（广东，非你所在省）`
+})
+
+/**
+ * 页签与 URL 双向同步：/policy?tab=manual 可深链进入，切换页签也会写回地址栏。
+ * 只读一次 query 的话，同一路由内换页签不会更新 URL，
+ * 用户复制地址或按返回键都会回到错误页签，深链分享也无法复现。
+ */
 const TAB_NAMES = ['national', 'guangdong', 'sources', 'reality', 'manual', 'kb', 'relief']
 const route = useRoute()
-const initialTab = typeof route.query.tab === 'string' && TAB_NAMES.includes(route.query.tab) ? route.query.tab : 'national'
-const tab = ref(initialTab)
+const router = useRouter()
+const tab = computed({
+  get: () => (typeof route.query.tab === 'string' && TAB_NAMES.includes(route.query.tab) ? route.query.tab : 'national'),
+  set: (v: string) => {
+    // 用 replace 避免每次点页签都往历史里压一条记录（返回键要退整页而不是逐页签退）
+    void router.replace({ query: { ...route.query, tab: v === 'national' ? undefined : v } })
+  },
+})
 
 /* ---------- 知识库 ---------- */
 const STATIC_KB = buildStaticKbEntries()

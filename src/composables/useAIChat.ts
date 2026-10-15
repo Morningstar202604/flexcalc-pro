@@ -121,35 +121,40 @@ export function useAIChat() {
     } catch { /* 隐私模式或配额耗尽时静默降级为不持久化 */ }
   }
 
+  /**
+   * 注入提示词的上下文取自「当前方案」（scenarios[0]，按 scenarioInputs 的构造顺序恒为当前参数）。
+   * 变量名不叫 best：这里并不是 comparison.best —— 首页「最优方案」可能来自「多跑2小时」
+   * 等其他场景，若把当前方案当最优汇报，AI 的结论会与首页数字互相矛盾。
+   */
   function buildContext(scenarios: ScenarioResult[]): string {
-    const best = scenarios[0]
-    if (!best) return '用户暂未测算'
-    return `城市=${best.work.city},工时=${best.work.dailyHours}h,日单=${best.work.dailyOrders},月工作日=${best.work.workDaysMonth}天。月收入=¥${best.income.grossIncome},成本=¥${best.costBreakdown.total},月个税≈¥${Math.round(best.tax.annualTax/12)},净收入=¥${best.netMonthly},时薪=¥${best.netHourly},权益评分=${best.rightsScore}/100。${best.keyInsights?.join('│') || ''}`
+    const cur = scenarios[0]
+    if (!cur) return '用户暂未测算'
+    return `城市=${cur.work.city},工时=${cur.work.dailyHours}h,日单=${cur.work.dailyOrders},月工作日=${cur.work.workDaysMonth}天。月收入=¥${cur.income.grossIncome},成本=¥${cur.costBreakdown.total},月个税≈¥${Math.round(cur.tax.annualTax/12)},净收入=¥${cur.netMonthly},时薪=¥${cur.netHourly},权益评分=${cur.rightsScore}/100。${cur.keyInsights?.join('│') || ''}`
   }
 
   function ruleReply(q: string, scenarios: ScenarioResult[]): string {
-    const best = scenarios[0]
-    if (!best) return '请先在左侧调整参数完成测算，我再帮你分析。'
+    const cur = scenarios[0]
+    if (!cur) return '请先在左侧调整参数完成测算，我再帮你分析。'
     const query = q.toLowerCase()
 
     if (/税|省|优化/.test(query)) {
-      if (best.tax.effectiveRate > 5) return `实际税率 ${best.tax.effectiveRate}%，税负偏高。若你具备真实经营实质（自有生产经营范围、独立建账、以自身名义承接业务）并已由税务机关核准相应征收方式，可咨询税务师核实是否适用经营所得申报；否则以劳务报酬累计预扣为准。以上为税负差异估算，不构成涉税意见。`
-      return `税率仅 ${best.tax.effectiveRate}%，已较低。保持合规申报即可。`
+      if (cur.tax.effectiveRate > 5) return `实际税率 ${cur.tax.effectiveRate}%，税负偏高。若你具备真实经营实质（自有生产经营范围、独立建账、以自身名义承接业务）并已由税务机关核准相应征收方式，可咨询税务师核实是否适用经营所得申报；否则以劳务报酬累计预扣为准。以上为税负差异估算，不构成涉税意见。`
+      return `税率仅 ${cur.tax.effectiveRate}%，已较低。保持合规申报即可。`
     }
     if (/社保|养老|退休/.test(query)) {
-      return `以灵活就业身份参保，养老月缴约¥${Math.round(best.benefit.pensionMonthly)}、医保约¥${Math.round(best.benefit.medicalMonthly)}，合计约¥${Math.round(benefitTotal(best))}（均由个人全额承担）。达到法定退休年龄且累计缴满最低年限后按月领取，具体金额取决于退休当年社平工资、缴费指数与个人账户储存额，本版本尚未建模，请以社保经办核算为准。`
+      return `以灵活就业身份参保，养老月缴约¥${Math.round(cur.benefit.pensionMonthly)}、医保约¥${Math.round(cur.benefit.medicalMonthly)}，合计约¥${Math.round(benefitTotal(cur))}（均由个人全额承担）。达到法定退休年龄且累计缴满最低年限后按月领取，具体金额取决于退休当年社平工资、缴费指数与个人账户储存额，本版本尚未建模，请以社保经办核算为准。`
     }
     if (/风险|安全|危险|权益|保障/.test(query)) {
-      if (scoreTier(best.rightsScore) === 'bad') return `权益评分${best.rightsScore}/100，保障缺口明显。建议：①工时控制在10h内②优先参加养老+医保③以商业意外险补充职业伤害缺口。`
-      return `权益评分${best.rightsScore}/100，${scoreLevel(best.rightsScore)}。${best.keyInsights?.[0] || ''}`
+      if (scoreTier(cur.rightsScore) === 'bad') return `权益评分${cur.rightsScore}/100，保障缺口明显。建议：①工时控制在10h内②优先参加养老+医保③以商业意外险补充职业伤害缺口。`
+      return `权益评分${cur.rightsScore}/100，${scoreLevel(cur.rightsScore)}。${cur.keyInsights?.[0] || ''}`
     }
     if (/建议|怎么办|好吗/.test(query)) {
-      const monthly = best.netMonthly
+      const monthly = cur.netMonthly
       const level = monthly > 8000 ? '高' : monthly > 5000 ? '中等' : '偏低'
-      return `月净收入¥${monthly}属${level}水平。${best.keyInsights?.slice(0,2).join('') || '建议保持当前节奏。'}`
+      return `当前方案月净收入¥${monthly}属${level}水平。${cur.keyInsights?.slice(0,2).join('') || '建议保持当前节奏。'}`
     }
     // fallback: summary
-    return `「${best.name}」月净¥${best.netMonthly}/年净¥${best.netAnnual}。可以深入问：税务优化/社保规划/风险评估。`
+    return `当前方案「${cur.name}」月净¥${cur.netMonthly}/年净¥${cur.netAnnual}。可以深入问：税务优化/社保规划/风险评估。`
   }
 
   function benefitTotal(s: ScenarioResult) {
@@ -191,6 +196,8 @@ export function useAIChat() {
     isStreaming.value = true
 
     let reader: ReadableStreamDefaultReader<Uint8Array> | undefined
+    // 在 try 外声明：finally 需要按 id 精确定位本次流式消息（清错消息会留下永久转圈的气泡）
+    let aiId: string | undefined
     try {
       const resp = await fetch(config.value.endpoint, {
         method: 'POST',
@@ -214,22 +221,42 @@ export function useAIChat() {
 
       const decoder = new TextDecoder()
       let aiContent = ''
-      const aiId = `ai_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+      aiId = `ai_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
       messages.value.push({ id: aiId, role: 'assistant', content: '', timestamp: Date.now(), isStreaming: true, source: 'ai' })
+
+      /** 流里出现的服务端错误（部分服务商用 200 + data:{"error":…} 回错误） */
+      let streamError = ''
+      /** 无法解析的行数与可诊断样本，供"有响应但读不出内容"时报出原因 */
+      let malformed = 0
+      let malformedSample = ''
 
       const consume = (raw: string) => {
         const t = raw.trim()
         if (!t.startsWith('data:')) return
         const d = t.slice(5).trim()
         if (d === '[DONE]' || !d) return
+        let parsed: unknown
         try {
-          const delta = JSON.parse(d)?.choices?.[0]?.delta?.content
-          if (delta) {
-            aiContent += delta
-            const idx = messages.value.findIndex(m => m.id === aiId)
-            if (idx >= 0) messages.value[idx].content = aiContent
-          }
-        } catch { /* 非 JSON 心跳行 */ }
+          parsed = JSON.parse(d)
+        } catch {
+          // 非 JSON 行可能是心跳或代理包装，逐行吞掉是合理的；但要留下计数，
+          // 否则"流读完却一个字都没有"时用户只看到气泡消失，无从判断原因
+          malformed++
+          if (!malformedSample) malformedSample = d.slice(0, 120)
+          return
+        }
+        const obj = parsed as { error?: { message?: string }; choices?: Array<{ delta?: { content?: string } }> }
+        if (obj?.error) {
+          // 服务商错误必须浮出水面：此前被当成普通行忽略，表现为"AI 不说话"
+          streamError = obj.error.message || '模型服务返回了错误'
+          return
+        }
+        const delta = obj?.choices?.[0]?.delta?.content
+        if (delta) {
+          aiContent += delta
+          const idx = messages.value.findIndex(m => m.id === aiId)
+          if (idx >= 0) messages.value[idx].content = aiContent
+        }
       }
 
       let buf = ''
@@ -242,10 +269,20 @@ export function useAIChat() {
         lines.forEach(consume)
       }
       if (buf) consume(buf)
+
+      if (streamError) throw new Error(`模型服务返回错误：${streamError}`)
+      if (!aiContent) {
+        // 有响应但没有任何可用内容：报出可诊断信息，而不是静默留空
+        throw new Error(malformed > 0
+          ? `响应格式无法解析（${malformed} 行非标准 SSE，样本：${malformedSample}）`
+          : '模型未返回任何内容，请重试或更换模型')
+      }
       saveHistory()
     } finally {
       reader?.cancel().catch(() => undefined)
-      const idx = messages.value.findIndex(m => m.isStreaming)
+      // 按 id 定位本次流式消息：此前用 isStreaming 找第一条，
+      // 在并发/异常交错时会清错消息，留下永久转圈的空气泡
+      const idx = aiId ? messages.value.findIndex(m => m.id === aiId) : -1
       if (idx >= 0) {
         messages.value[idx].isStreaming = false
         if (!messages.value[idx].content) messages.value.splice(idx, 1)

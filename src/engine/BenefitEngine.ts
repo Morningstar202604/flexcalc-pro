@@ -68,9 +68,10 @@ export class BenefitEngine {
     const contribution = Number.isFinite(monthlyContribution) ? Math.max(monthlyContribution, 0) : 0
 
     const months = Math.max(0, Math.round((safeRetire - safeAge) * 12))
-    // 缴费月数按缴费年限计（不超过到退休的月数）；缴满即停缴，账户余额继续复利至退休。
-    // 与 domain/benefit/calculator 同口径，由 parity 测试锁定一致性。
-    const contributionMonths = Math.min(months, Math.max(0, safeYears) * 12)
+    // 缴费年限与基础养老金共用同一年限（不超过到退休的年数）：只封顶个账月数会让
+    // 基础养老金按超额年限算，同一结果里两套年限打架。与 domain 同口径，由 parity 锁定。
+    const effectiveYears = Math.min(safeYears, safeRetire - safeAge)
+    const contributionMonths = Math.min(months, Math.max(0, effectiveYears) * 12)
     let balance = 0
     const safeReturn = Number.isFinite(annualReturn) ? Math.min(Math.max(annualReturn, -1), 1) : 0.05
     for (let i = 0; i < months; i++) {
@@ -80,7 +81,7 @@ export class BenefitEngine {
     // 国发〔2005〕38号：基础养老金 = 计发基数 ×(1+平均缴费指数)÷2 × 缴费年限 × 1%
     // 缴费指数低于 0.6 时按 0.6 计（低于该档需按 0.6/指数 的折扣系数调整，此处取下限口径）
     const idx = Math.max(0.6, Number.isFinite(paymentIndex) ? paymentIndex : 0.6)
-    const basePension = round(benefitBase * (1 + idx) / 2 * safeYears * 0.01)
+    const basePension = round(benefitBase * (1 + idx) / 2 * effectiveYears * 0.01)
     const personalPension = personalAccount > 0 ? round(personalAccount / issuanceMonthsForAge(safeRetire)) : 0
     return { personalAccount, basePension, personalPension, totalPension: round(basePension + personalPension), months }
   }

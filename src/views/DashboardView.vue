@@ -2,27 +2,44 @@
   <div class="dashboard">
     <OnboardingHint />
 
+    <!-- 规则未就绪（加载中/加载失败）时不得显示 0 值：¥0/0分 会被读成真实结论 -->
+    <n-alert v-if="!store.rule" :type="store.loadError ? 'error' : 'info'" :show-icon="true" style="margin-bottom: 12px">
+      <template v-if="store.loadError">
+        本城规则加载失败，以下数字无法计算。请用顶部提示的「重新加载」重试，或切换城市。
+      </template>
+      <template v-else>正在加载本城政策规则，测算数字稍后显示……</template>
+    </n-alert>
+
+    <!-- 占位数据门禁：不挡住数字，但必须让用户知道这些结论建立在假设上 -->
+    <n-alert v-else-if="provisional" type="warning" :show-icon="true" style="margin-bottom: 12px">
+      <div><b>当前结论为假设测算，不能直接用于决策</b></div>
+      <div style="margin-top:4px">
+        以下参数尚未回溯官方来源：{{ unverifiedFields.join('、') }}。
+        「最优方案」「推荐」只是按这些占位假设算出的排序——请先把左侧参数换成你自己的真实流水再参考。
+      </div>
+    </n-alert>
+
     <!-- KPI Row -->
     <div class="kpi-row">
       <div class="stat">
-        <span class="stat-label">月净收入</span>
-        <span class="stat-value">¥{{ bestNetMonthly.toLocaleString() }}</span>
-        <span class="stat-foot">{{ store.comparison?.best?.name || '—' }}</span>
+        <span class="stat-label">月净收入{{ provisional ? '（假设）' : '' }}</span>
+        <span class="stat-value">{{ dataReady ? '¥' + bestNetMonthly.toLocaleString() : '—' }}</span>
+        <span class="stat-foot">{{ dataReady ? (store.comparison?.best?.name || '—') : '等待规则加载' }}</span>
       </div>
       <div class="stat">
         <span class="stat-label">年净收入</span>
-        <span class="stat-value">¥{{ bestNetAnnual.toLocaleString() }}</span>
+        <span class="stat-value">{{ dataReady ? '¥' + bestNetAnnual.toLocaleString() : '—' }}</span>
         <span class="stat-foot">含成本扣除</span>
       </div>
       <div class="stat">
         <span class="stat-label">有效时薪</span>
-        <span class="stat-value">¥{{ bestHourly }}</span>
+        <span class="stat-value">{{ dataReady ? '¥' + bestHourly : '—' }}</span>
         <span class="stat-foot">{{ store.comparison?.best?.work.dailyHours || 0 }}h/天</span>
       </div>
       <div class="stat">
         <span class="stat-label">权益评分</span>
-        <span class="stat-value" :class="rightsScoreClass">{{ rightsScore }}/100</span>
-        <span class="stat-foot">{{ rightsLevel }}</span>
+        <span class="stat-value" :class="rightsScoreClass">{{ dataReady ? rightsScore + '/100' : '—' }}</span>
+        <span class="stat-foot">{{ dataReady ? rightsLevel : '等待规则加载' }}</span>
       </div>
     </div>
 
@@ -54,8 +71,7 @@
       title="收入与结构图表"
       summary="净收入对比 · 收支结构"
       style="margin-top: 12px"
-    >
-      <n-grid :x-gap="12" cols="1 m:2" responsive="screen">
+    >      <n-grid :x-gap="12" cols="1 m:2" responsive="screen">
         <n-gi>
           <n-card title="各方案净收入对比" class="card">
             <ChartBox :option="barOption" :height="300" />
@@ -98,7 +114,7 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import type { EChartsCoreOption } from 'echarts/core'
-import { NCard, NGrid, NGi, NEmpty, NDataTable, NButton, type DataTableColumns } from 'naive-ui'
+import { NCard, NGrid, NGi, NEmpty, NDataTable, NButton, NAlert, type DataTableColumns } from 'naive-ui'
 import { useMainStore } from '../stores/main'
 import { axisX, axisY, GRID, chartColors } from '../utils/chart'
 import { scoreTier, scoreLevel, TIER_COLORS } from '../utils/score'
@@ -108,6 +124,13 @@ import OnboardingHint from '../components/OnboardingHint.vue'
 
 const router = useRouter()
 const store = useMainStore()
+
+/** 规则就绪才显示数字：加载中/失败时展示「—」，避免 0 被误读为真实结论 */
+const dataReady = computed(() => !!store.rule && !!store.comparison?.best)
+
+/** 占位数据门禁：最优方案建立在未核实参数上时，措辞降级为「假设测算」 */
+const provisional = computed(() => store.comparison?.best?.dataQuality?.provisional === true)
+const unverifiedFields = computed(() => store.comparison?.best?.dataQuality?.unverifiedFields ?? [])
 
 const bestNetMonthly = computed(() => store.comparison?.best?.netMonthly || 0)
 const bestNetAnnual = computed(() => store.comparison?.best?.netAnnual || 0)
@@ -139,7 +162,8 @@ const rankCols: DataTableColumns<RankRow> = [
   { title: '年净收入', key: 'netAnnual', align: 'right', render: (row) => '¥' + row.netAnnual.toLocaleString() },
   { title: '月净收入', key: 'netMonthly', align: 'right', render: (row) => '¥' + row.netMonthly.toLocaleString() },
   { title: '权益', key: 'rights', width: 60, align: 'center' },
-  { title: '评级', key: 'tag', width: 72, align: 'center', render: (row) => row.tag === 'recommended' ? '推荐' : row.tag === 'viable' ? '可行' : '有风险' },
+  // 占位数据下把「推荐」换成「假设」：评级只是占位假设下的相对排序，不是真实建议
+  { title: '评级', key: 'tag', width: 72, align: 'center', render: (row) => provisional.value ? '假设' : row.tag === 'recommended' ? '推荐' : row.tag === 'viable' ? '可行' : '有风险' },
 ]
 
 const barOption = computed<EChartsCoreOption>(() => {

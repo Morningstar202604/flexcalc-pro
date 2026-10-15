@@ -196,6 +196,20 @@ export interface ScenarioResult {
   rightsFlags: string[]
   recommendation: 'recommended' | 'viable' | 'risky'
   keyInsights: string[]
+  /**
+   * 数据质量：本结果依赖的输入里是否存在未回溯官方的占位值。
+   * provisional=true 时「最优/推荐」只是按占位假设算出的排序，不得作为决策依据。
+   */
+  dataQuality: DataQuality
+}
+
+export interface DataQuality {
+  /** 为 true 表示结果建立在占位/未核实数据上，只能作为假设测算展示 */
+  provisional: boolean
+  /** 未核实的字段名（中文标签），供 UI 直接展示 */
+  unverifiedFields: string[]
+  /** 已回溯官方的字段名（中文标签） */
+  officialFields: string[]
 }
 
 export interface ComparisonResult {

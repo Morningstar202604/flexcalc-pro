@@ -83,11 +83,12 @@ export function projectRetirement(
     : Cent.create(0)
 
   const months = Math.max(0, Math.round((safeRetire - safeAge) * 12))
-  // 实际缴费月数：按缴费年限计，且不得超过「退休年龄-当前年龄」的月数。
-  // 缴满即停缴，但账户余额继续按记账利率滚存至退休领取日——
-  // 旧实现拿"到退休的整段月数"当缴费月数，会把"只缴 15 年"的方案
-  // 按 35 年缴费滚账户，个账养老金虚高。
-  const contributionMonths = Math.min(months, Math.max(0, safeYears) * 12)
+  // 实际缴费年限：不得超过「退休年龄-当前年龄」。年缴满即停缴，
+  // 账户余额继续按记账利率滚存至退休领取日。
+  // 两处封顶必须共用同一年限：只封顶个账月数而让基础养老金仍按超额年限算，
+  // 会让同一结果里出现两套年限（个账按 5 年、基础养老金按 30 年），养老金被系统性高估。
+  const effectiveYears = Math.min(safeYears, safeRetire - safeAge)
+  const contributionMonths = Math.min(months, Math.max(0, effectiveYears) * 12)
 
   // 个人账户累积：缴费期内月复利注入，缴费期后仅复利
   const safeReturn = Number.isFinite(Number(annualReturn))
@@ -110,7 +111,7 @@ export function projectRetirement(
   // 基础养老金：国发〔2005〕38号公式
   // 缴费指数低于 0.6 时按 0.6 计（广东规则）
   const idx = Math.max(0.6, Number.isFinite(Number(paymentIndex)) ? Number(paymentIndex) : 0.6)
-  const basePensionNum = Number(benefitBaseMonthly) * (1 + idx) / 2 * safeYears * 0.01
+  const basePensionNum = Number(benefitBaseMonthly) * (1 + idx) / 2 * effectiveYears * 0.01
   const basePension = safeCent(Math.round(basePensionNum))
 
   // 个人账户养老金：计发月数按退休年龄查表（国发〔2005〕38号附表，60 岁 = 139）

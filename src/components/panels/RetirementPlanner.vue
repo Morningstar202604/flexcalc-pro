@@ -9,6 +9,19 @@
         （<b>{{ (store.rule?.retirement.benefitBaseMonthly ?? 0).toLocaleString() }}</b> 元/月）<SourceTag source-key="retirement" />，账户收益率
         {{ assumedReturnPct }}% 为假设值，实际由人社部门核算。
       </p>
+      <!-- 未参保时本页仍会算出养老金，若不说明前提，用户会以为自己已经有这笔钱 -->
+      <n-alert v-if="!store.personal.hasSocialInsurance" type="info" :show-icon="true" style="margin-top: 8px">
+        你当前标记为<strong>未参保</strong>。以下数字是「假如从现在起按灵活就业身份连续缴费到
+        {{ store.personal.expectedRetireAge }} 岁」的推演结果，<strong>不是已有权益</strong>，
+        也不含你过去任何已缴年限或历史账户余额。缴满最低年限（2030 年起逐步提高到 20 年）
+        才能按月领取。
+      </n-alert>
+      <!-- 明确当期基数来源，避免"选了高档但首屏没变"的困惑 -->
+      <p class="base-note">
+        测算基数：<b>¥{{ effectivePensionBase.toLocaleString() }}/月</b>
+        <template v-if="usingChosenBase">（你在左侧自选的缴费基数，档位 {{ basePctLabel }}）</template>
+        <template v-else>（本城法定下限，可在左侧「税务与社保」中上调档位）</template>
+      </p>
     </n-card>
 
     <div class="kpi-row" style="margin-top: 12px">
@@ -102,10 +115,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { EChartsCoreOption } from 'echarts/core'
-import { NCard, NGrid, NGi, NTable } from 'naive-ui'
+import { NCard, NGrid, NGi, NTable, NAlert } from 'naive-ui'
 import { useMainStore } from '../../stores/main'
 import { BenefitEngine } from '../../engine/BenefitEngine'
 import { issuanceMonthsForAge } from '../../utils/issuanceMonths'
+import { buildPensionGrowthSeries, buildPensionTiers, socialAverageWage } from '../../utils/pensionSeries'
 import { axisX, axisY, GRID, legend, chartColors } from '../../utils/chart'
 import ChartBox from '../ChartBox.vue'
 import SourceTag from '../SourceTag.vue'
@@ -119,11 +133,39 @@ const assumedReturnPct = computed(() => Math.round((store.rule?.retirement.assum
 
 const socialFacts = realityFactsBy(['refund-only-personal', 'delay-retirement', 'medical-lapse', 'employment-injury-gap'])
 
+/**
+ * 首屏测算用的养老缴费基数：用户自选优先，未选时按下限（与 ParamSidebar 的
+ * autoPensionBase 同口径）。
+ * 旧实现恒取 baseMin：用户在左侧选了 100%/200% 档，本页仍按下限出养老金，
+ * 首屏数字与用户实际选择脱钩。
+ */
+const effectivePensionBase = computed(() => {
+  const chosen = store.personal.pensionBase
+  const min = store.rule?.benefit.pension.baseMin ?? 5000
+  const max = store.rule?.benefit.pension.baseMax ?? min
+  if (typeof chosen === 'number' && Number.isFinite(chosen) && chosen > 0) {
+    return Math.min(Math.max(chosen, min), max)
+  }
+  return min
+})
+
+/** 是否已按用户自选基数测算（用于文案区分「按下限」与「按你选的档」） */
+const usingChosenBase = computed(() => store.personal.pensionBase !== undefined)
+
+/** 当前基数对应的档位百分比（60% 档即法定下限） */
+const basePctLabel = computed(() => {
+  const social = socialAverageWage(
+    store.rule?.benefit.pension.baseMin ?? 0,
+    store.rule?.benefit.pension.baseMax,
+  )
+  if (!social) return '—'
+  return Math.round((effectivePensionBase.value / social) * 100) + '%'
+})
+
 /** 月缴费总额（灵活就业自缴全部 20%），用于成本展示 */
 const monthlyContribution = computed(() => {
-  const base = store.rule?.benefit.pension.baseMin || 5000
   const rate = store.rule?.benefit.pension.rate || 0.2
-  return Math.round(base * rate)
+  return Math.round(effectivePensionBase.value * rate)
 })
 
 /**
@@ -131,9 +173,8 @@ const monthlyContribution = computed(() => {
  * 账户滚存只能用这一部分，把全额 20% 记进个账会让个账养老金虚高约 2.5 倍。
  */
 const accountMonthly = computed(() => {
-  const base = store.rule?.benefit.pension.baseMin || 5000
   const rate = store.rule?.retirement.personalAccountRate ?? 0.08
-  return Math.round(base * rate)
+  return Math.round(effectivePensionBase.value * rate)
 })
 
 /**
@@ -174,22 +215,27 @@ const tierOption = computed<EChartsCoreOption>(() => {
   const baseMin = store.rule?.benefit.pension.baseMin || 5000
   const baseMax = store.rule?.benefit.pension.baseMax || 26000
   const rate = store.rule?.benefit.pension.rate || 0.2
-  const tiers = [
-    { name: '60%档', base: baseMin },
-    { name: '80%档', base: (baseMin + baseMax) * 0.4 },
-    { name: '100%档', base: (baseMin + baseMax) * 0.5 },
-    { name: '150%档', base: (baseMin + baseMax) * 0.75 },
-    { name: '200%档', base: baseMax * 0.8 },
-  ]
+  // 档位基数按法定 60%~300% 口径换算（见 utils/pensionSeries）。
+  // 旧的线性插值系数与档位标签脱钩，200% 档基数反而低于 150% 档，
+  // 图上出现"缴得越多、养老金越少"的反向结论
+  const tiers = buildPensionTiers(baseMin, baseMax)
   const annualReturn = store.rule?.retirement.assumedAnnualReturn ?? 0.05
   const accountRate = store.rule?.retirement.personalAccountRate ?? 0.08
   const contribData = tiers.map(t => Math.round(t.base * rate))
-  const pensionData = tiers.map(t => engine.value!.projectRetirement(store.personal.currentAge, store.personal.expectedRetireAge, Math.round(t.base * accountRate), store.personal.expectedRetireAge - store.personal.currentAge, annualReturn).totalPension)
+  // 各档基础养老金必须按该档自身的缴费指数算（指数 = 基数 ÷ 社平）。
+  // 不传指数时引擎按法定下限 0.6 兜底，会让 100%/200% 档养老金被大幅低估
+  // （200%档少约 ¥2,300/月），图上呈现"多缴并不划算"的错误结论。
+  const socialAvg = socialAverageWage(baseMin, baseMax)
+  const pensionData = tiers.map(t => engine.value!.projectRetirement(
+    store.personal.currentAge, store.personal.expectedRetireAge,
+    Math.round(t.base * accountRate), store.personal.expectedRetireAge - store.personal.currentAge,
+    annualReturn, t.base / socialAvg,
+  ).totalPension)
   return {
     tooltip: { trigger: 'axis' },
     legend: legend(['月养老金', '月缴费额'], P),
     grid: GRID,
-    xAxis: axisX(tiers.map(t => t.name), P),
+    xAxis: axisX(tiers.map(t => t.label), P),
     yAxis: axisY(P),
     series: [
       { name: '月缴费额', type: 'bar', data: contribData, itemStyle: { color: P.light }, barWidth: '25%' },
@@ -202,17 +248,18 @@ const growthOption = computed<EChartsCoreOption>(() => {
   void store.isDark
   if (!engine.value) return {}
   const P = chartColors()
-  const months = (store.personal.expectedRetireAge - store.personal.currentAge) * 12
-  const annualReturn = store.rule?.retirement.assumedAnnualReturn ?? 0.05
-  const labels: string[] = []
-  const data: number[] = []
-  let balance = 0
-  const m = accountMonthly.value
-  for (let i = 0; i <= months; i += 12) {
-    labels.push((store.personal.currentAge + i / 12) + '岁')
-    balance = balance * Math.pow(1 + annualReturn, 12) + m * 12
-    data.push(Math.round(balance))
-  }
+  const annualReturn = store.rule?.retirement.assumedAnnualReturn ?? 0.03
+  // 取数逻辑抽到 utils/pensionSeries（纯函数），保证本图每个点与退休引擎同口径；
+  // 内联复利循环曾与引擎漂移约 9000 倍，且组件内无法被单测发现
+  const points = buildPensionGrowthSeries({
+    engine: engine.value,
+    currentAge: store.personal.currentAge,
+    retireAge: store.personal.expectedRetireAge,
+    accountMonthly: accountMonthly.value,
+    annualReturn,
+  })
+  const labels = points.map(p => p.label)
+  const data = points.map(p => p.balance)
   return {
     tooltip: { trigger: 'axis' },
     grid: GRID,
@@ -231,19 +278,27 @@ const compareYears = computed(() => {
   if (!engine.value) return []
   const annualReturn = store.rule?.retirement.assumedAnnualReturn ?? 0.05
   const rate = store.rule?.benefit.pension.rate || 0.2
-  const base = store.rule?.benefit.pension.baseMin || 5000
+  // 与首屏同一基数口径：用户自选优先，未选按下限
+  const base = effectivePensionBase.value
   const monthly = Math.round(base * rate)
   const accountRate = store.rule?.retirement.personalAccountRate ?? 0.08
   const accountMo = Math.round(base * accountRate)
   const retireAge = store.personal.expectedRetireAge
   const full = Math.max(1, retireAge - store.personal.currentAge)
+  // 该基数对应的缴费指数（基数 ÷ 社平）：不传的话引擎按 0.6 下限兜底，
+  // 选了高档位的用户在这一栏会看到被低估的基础养老金
+  const socialAvg = socialAverageWage(
+    store.rule?.benefit.pension.baseMin ?? base,
+    store.rule?.benefit.pension.baseMax,
+  )
+  const paymentIndex = socialAvg > 0 ? base / socialAvg : undefined
   const list = [15, 20, 25, 30].filter(y => y < full)
   list.push(full)
   return list.map(years => {
     // 缴满 N 年后停缴，养老金仍在法定退休年龄领取：
     // 缴费年限只影响基础养老金与账户累积，不改变领取时点（缴 15 年不等于 40 岁退休）。
     // 成本按全额 20% 缴费计；账户滚存只用其中 8% 的个账部分。
-    const r = engine.value!.projectRetirement(store.personal.currentAge, retireAge, accountMo, years, annualReturn)
+    const r = engine.value!.projectRetirement(store.personal.currentAge, retireAge, accountMo, years, annualReturn, paymentIndex)
     const paid = years * 12 * monthly
     const label = years === full ? `缴至退休（${retireAge}岁）` : `缴${years}年`
     return {
@@ -260,6 +315,12 @@ const compareYears = computed(() => {
 .advice-list { margin: 0; padding-left: 18px; }
 .advice-list li { font-size: 12px; color: var(--color-text-secondary); line-height: 1.7; margin-bottom: 4px; }
 .advice-list a { color: var(--color-text-brand); }
+.base-note {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  margin: 8px 0 0;
+  line-height: 1.6;
+}
 .retire-caveat {
   font-size: 11px;
   color: var(--color-text-warning);

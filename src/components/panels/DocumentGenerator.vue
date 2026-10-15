@@ -11,7 +11,9 @@
       </n-alert>
       <n-alert v-else type="warning" :show-icon="true" style="margin-top: 8px">
         已带入你在「补偿计算」面板填写的结果：可直接主张 ¥{{ yuan(comp.total) }}
-        <template v-if="comp.conditionalTotal > 0">＋条件项 ¥{{ yuan(comp.conditionalTotal) }}（需前置条件成立，提交前请确认）</template>
+        <template v-if="comp.conditionalTotal > 0">
+          ；另有条件项 ¥{{ yuan(comp.conditionalTotal) }} 需前置条件成立，已在文书中单列，不计入可直接主张合计。
+        </template>
         <div style="margin-top:4px">这些数字来自你填入的参数，不是平台认定的金额，提交前请逐项核对。</div>
       </n-alert>
     </n-card>
@@ -57,14 +59,11 @@
             </div>
             <div class="form-item">
               <label>所属城市</label>
-              <n-select v-model:value="userInfo.city" :options="[
-                { label: '广州', value: '广州市' },
-                { label: '深圳', value: '深圳市' },
-                { label: '东莞', value: '东莞市' },
-                { label: '佛山', value: '佛山市' },
-                { label: '珠海', value: '珠海市' },
-                { label: '中山', value: '中山市' },
-              ]" />
+              <n-select v-model:value="userInfo.city" :options="cityOptions" />
+              <p class="city-note" v-if="cityMismatch">
+                已按当前测算城市（{{ store.rule?.cityName }}）自动带入。若争议确实发生在其他城市，可在此改选——
+                但补偿金额是按测算城市的最低工资与社保基数封顶的，换城市后请回「补偿计算」重新测算。
+              </p>
             </div>
             <div class="form-item">
               <label>争议发生日期</label>
@@ -120,6 +119,7 @@
 import { ref, reactive, computed } from 'vue'
 import { NCard, NGrid, NGi, NInput, NSelect, NDatePicker, NButton, NDivider, NAlert, useMessage } from 'naive-ui'
 import { useMainStore } from '../../stores/main'
+import { CITY_OPTIONS } from '../../data/cities'
 
 const message = useMessage()
 const store = useMainStore()
@@ -132,8 +132,23 @@ const yuan = (n: number) => n.toLocaleString('zh-CN')
 const CN_NUM = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十']
 const claimItems = computed(() => comp.value?.items.filter(i => i.kind === 'claim' && i.amount > 0) ?? [])
 const condItems = computed(() => comp.value?.items.filter(i => i.kind === 'conditional' && i.amount > 0) ?? [])
-const requests = computed(() => [...claimItems.value, ...condItems.value])
-const requestTotal = computed(() => (comp.value?.total ?? 0) + (comp.value?.conditionalTotal ?? 0))
+
+/**
+ * 文书城市跟随当前测算城市（全国 15 城 + 省内补充），不再写死 6 城。
+ * 补偿金额是按测算城市的社保基数/最低工资封顶的，文书城市与测算城市不一致时
+ * 必须显式提示重新测算，否则提交的金额与所写城市对不上。
+ */
+const cityOptions = computed(() => {
+  const list = CITY_OPTIONS.map(o => ({ label: o.label, value: `${o.label}市` }))
+  const current = store.rule?.cityName
+  if (current && !list.some(o => o.label === current)) list.unshift({ label: current, value: `${current}市` })
+  // 省内补充城市（未收录规则时仍可开具文书，但金额需自行核对）
+  for (const extra of ['佛山', '珠海', '中山']) {
+    if (!list.some(o => o.label === extra)) list.push({ label: extra, value: `${extra}市` })
+  }
+  return list
+})
+const cityMismatch = computed(() => !!store.rule && userInfo.city !== `${store.rule.cityName}市`)
 const legalBasisLine = computed(() =>
   (comp.value?.legalRefs ?? []).map(r => `《中华人民共和国${r.law}》${r.article}`).join('、') || '________')
 
@@ -151,7 +166,8 @@ const userInfo = reactive({
   phone: '',
   id: '',
   platform: '美团',
-  city: '广州市',
+  // 默认取当前测算城市，避免"测算广州、文书深圳"的默认不一致
+  city: store.rule ? `${store.rule.cityName}市` : '广州市',
   date: Date.now(),
 })
 
@@ -183,14 +199,19 @@ const arbitrationDoc = computed(() => {
 法定代表人/负责人：____  职务：____
 
 仲裁请求：
-${requests.value.length
-  ? requests.value.map((r, i) => `${i + 1}. 裁决被申请人支付${r.name.replace(/（.*?）/g, '')}人民币${yuan(r.amount)}元；`).join('\n')
-    + `\n（以上合计：人民币${yuan(requestTotal.value)}元）`
+${claimItems.value.length
+  ? claimItems.value.map((r, i) => `${i + 1}. 裁决被申请人支付${r.name.replace(/（.*?）/g, '')}人民币${yuan(r.amount)}元；`).join('\n')
+    + `\n（以上可直接主张金额合计：人民币${yuan(comp.value?.total ?? 0)}元）`
   : `1. 裁决被申请人支付拖欠劳动报酬人民币________元；
 2. 裁决被申请人支付违法解除劳动合同赔偿金人民币________元；
 3. 裁决被申请人支付未订立书面劳动合同二倍工资差额人民币________元；
 （以上合计：人民币________元）
 [提示：先在"补偿计算"面板完成测算，请求金额会自动填入]`}
+${condItems.value.length
+  ? `\n以下项需前置条件成立后方可主张（不计入上项合计，请在庭前逐项确认条件是否满足）：
+${condItems.value.map((r, i) => `${CN_NUM[i] || (i + 1)}. ${r.name.replace(/（.*?）/g, '')}人民币${yuan(r.amount)}元（条件：${r.note}）；`).join('\n')}
+（条件项合计：人民币${yuan(comp.value?.conditionalTotal ?? 0)}元）`
+  : ''}
 
 事实与理由：
 申请人于____年__月__日起在${platform}平台从事外卖配送工作，日均在线${store.work.dailyHours}小时、日均接单${store.work.dailyOrders}单，月工作${store.work.workDaysMonth}天。${comp.value ? `据测算，申请月均报酬约为人民币${yuan(Math.round(store.scenarios[0]?.income.grossIncome ?? 0))}元。` : ''}工作期间，被申请人存在下述行为：
@@ -465,6 +486,8 @@ function downloadDoc() {
 
 .form-section { display: flex; flex-direction: column; gap: 10px; }
 .form-item label { font-size: 12px; color: var(--color-text-secondary); font-weight: 500; display: block; margin-bottom: 3px; }
+.form-item .id-note,
+.form-item .city-note { font-size: 11px; color: var(--color-text-tertiary); line-height: 1.6; margin: 4px 0 0; }
 
 .preview-head { display: flex; justify-content: space-between; align-items: center; width: 100%; }
 .preview-title { font-size: 14px; font-weight: 600; color: var(--color-text-primary); }

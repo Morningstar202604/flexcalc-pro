@@ -74,7 +74,8 @@
     </n-card>
 
     <n-card title="个体工商户注册步骤" class="card" style="margin-top: 12px">
-      <n-steps :current="5" size="small">
+      <!-- 纵向排列：横向 5 步在窄屏会把整页撑出横向滚动条（其余页面的步骤条均为纵向） -->
+      <n-steps :current="5" size="small" vertical>
         <n-step title="准备材料" description="身份证、经营场所证明（或电商网址）、手机号码" />
         <n-step title="线上申请" description="广东政务服务网 → 开办企业一网通" />
         <n-step title="银行开户" description="选择银行预约个体户结算账户" />

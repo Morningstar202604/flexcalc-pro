@@ -125,6 +125,15 @@ describe('C. 极端输入下的输出必须诚实', () => {
     }
   })
 
+  it('本月 0 天工作时时薪为 0，而不是把整月净亏摊到 1 小时（曾给出 ¥-195/h）', () => {
+    const r = run({ work: { ...baseWork, workDaysMonth: 0 } })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.netMonthly).toBeLessThan(0)
+    // 没有工作小时就没有时薪，不得用 1 小时当分母造出一个负时薪
+    expect(r.value.netHourly).toBe(0)
+  })
+
   it('不参保时，参保成本提示不能显示为 0（服务层 totalMonthly 为 0 是「未缴」而非「免费」）', () => {
     const r = run()
     expect(r.ok).toBe(true)

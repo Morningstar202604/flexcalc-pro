@@ -39,14 +39,16 @@
       :summary="`${store.work.dailyHours}h/天 · ${store.work.dailyOrders}单 · ${store.work.workDaysMonth}天`"
     >
       <div class="ps-group">
+        <!-- 滑块区间与 domain/service 的合法区间一致：兼职/新手场景（2h、5单、15天）
+             原先被控件下限挡在门外，用户只能用默认值或不可复现地手改存储 -->
         <div class="ps-item">
           <div class="ps-label">日均工时 <b>{{ store.work.dailyHours }}h</b></div>
-          <n-slider v-model:value="store.work.dailyHours" :min="4" :max="14" :step="1" :tooltip-formatter="(v: number) => v + ' 小时'" />
+          <n-slider v-model:value="store.work.dailyHours" :min="1" :max="14" :step="1" :tooltip-formatter="(v: number) => v + ' 小时'" />
         </div>
 
         <div class="ps-item">
           <div class="ps-label">日均接单 <b>{{ store.work.dailyOrders }}单</b></div>
-          <n-slider v-model:value="store.work.dailyOrders" :min="15" :max="60" :step="5" :tooltip-formatter="(v: number) => v + ' 单'" />
+          <n-slider v-model:value="store.work.dailyOrders" :min="0" :max="60" :step="1" :tooltip-formatter="(v: number) => v + ' 单'" />
         </div>
 
         <div class="ps-item">
@@ -56,7 +58,7 @@
 
         <div class="ps-item">
           <div class="ps-label">月工作天 <b>{{ store.work.workDaysMonth }}天</b></div>
-          <n-slider v-model:value="store.work.workDaysMonth" :min="20" :max="31" :step="1" :tooltip-formatter="(v: number) => v + ' 天'" />
+          <n-slider v-model:value="store.work.workDaysMonth" :min="0" :max="31" :step="1" :tooltip-formatter="(v: number) => v + ' 天'" />
         </div>
 
         <div class="ps-item">
@@ -208,6 +210,11 @@
 
     <div class="ps-foot">
       <n-tag size="small" :bordered="false" type="info">参数与测算均在本机完成</n-tag>
+      <div v-if="store.cityNotice" class="ps-notice">
+        <span>{{ store.cityNotice }}</span>
+        <button class="ps-notice-x" aria-label="关闭提示" @click="store.cityNotice = null">×</button>
+      </div>
+      <div v-if="store.persistError" class="ps-persist-error">{{ store.persistError }}</div>
       <div v-if="store.paramsRestored" class="ps-restored">已恢复上次未完成的测算参数</div>
       <n-button size="tiny" quaternary block @click="store.resetParams()">重置为默认参数</n-button>
     </div>
@@ -219,6 +226,8 @@ import { computed } from 'vue'
 import { NSlider, NRadioGroup, NRadioButton, NSwitch, NTag, NSelect, NButton, NModal } from 'naive-ui'
 import { ref } from 'vue'
 import { useMainStore, CITIES } from '../stores/main'
+import { calcCosts } from '../domain/income/calculator'
+import { adaptCosts } from '../application/adapters/ruleAdapters'
 import SourceTag from './SourceTag.vue'
 import FoldCard from './FoldCard.vue'
 import ChinaMapPicker from './ChinaMapPicker.vue'
@@ -234,9 +243,9 @@ function onMapPick(city: string) {
 }
 
 const costTotal = computed(() => {
-  const c = store.costs
-  return c.fuelCostMonth + c.electricityCostMonth + c.maintenanceMonth + c.insuranceMonth
-    + c.phoneCostMonth + c.foodCostMonth + c.trafficFineMonth + c.vehicleDepreciationMonth + c.otherCostMonth
+  // 直接复用 domain 的成本函数：车型过滤（电动车不计油费）与夹取规则
+  // 只在那一处定义，侧栏不再手写第二份求和，避免与测算结果漂移
+  return Number(calcCosts(adaptCosts(store.costs)).total) / 100
 })
 
 /** 东莞等地医保分档收费，无单一法定费率，必须让用户按实际参保档次选 */
@@ -362,6 +371,37 @@ const autoMedicalBase = computed(() => autoBase(medicalBaseMin.value, medicalBas
   background: rgba(13,148,136,0.07);
   border-radius: 3px;
   padding: 3px 6px;
+}
+
+.ps-notice {
+  position: relative;
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--color-text-warning);
+  background: var(--color-warning-50);
+  border: 1px solid var(--color-warning-200);
+  border-radius: 3px;
+  padding: 4px 18px 4px 6px;
+}
+.ps-notice-x {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-warning);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+.ps-persist-error {
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--color-danger-600);
+  background: var(--color-danger-50);
+  border: 1px solid var(--color-danger-200);
+  border-radius: 3px;
+  padding: 4px 6px;
 }
 
 .map-foot { font-size: 11px; color: var(--color-text-tertiary); }

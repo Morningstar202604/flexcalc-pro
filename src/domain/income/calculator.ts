@@ -79,8 +79,13 @@ export function calcIncome(rule: IncomeRule, params: WorkParams): IncomeBreakdow
 
 /** 计算成本分项 */
 export function calcCosts(params: CostParams): CostBreakdown {
-  const fuelCostMonth = clamp(params.fuelCostMonth, 0, 2000000, 0)
-  const electricityCostMonth = clamp(params.electricityCostMonth, 0, 2000000, 0)
+  // 车型决定油/电哪一项真实发生：UI 会隐藏另一项的输入框，
+  // 但隐藏的值仍留在参数里。若照旧加总，电动车用户会被已看不见的油费持续扣减净收入。
+  // 这里只把「与车型不匹配」的分项归零，不改写输入参数本身——切回原车型即恢复原值。
+  const isElectric = params.vehicleType === 'electric'
+  const isFuel = params.vehicleType === 'fuel'
+  const fuelCostMonth = isElectric ? 0 : clamp(params.fuelCostMonth, 0, 2000000, 0)
+  const electricityCostMonth = isFuel ? 0 : clamp(params.electricityCostMonth, 0, 2000000, 0)
   const maintenanceMonth = clamp(params.maintenanceMonth, 0, 2000000, 0)
   const insuranceMonth = clamp(params.insuranceMonth, 0, 2000000, 0)
   const phoneCostMonth = clamp(params.phoneCostMonth, 0, 2000000, 0)
